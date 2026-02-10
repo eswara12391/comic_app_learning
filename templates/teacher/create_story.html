@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+
+{% block title %}Create Story - Comic Learning App{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/teacher.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-plus-circle"></i> Create New Story</h1>
+    <p>Create an interactive comic story with images, text, and narration</p>
+</div>
+
+<form method="POST" action="{{ url_for('create_story') }}" enctype="multipart/form-data" id="story-form">
+    <div class="form-section">
+        <h2><i class="fas fa-info-circle"></i> Story Information</h2>
+        
+        <div class="form-group">
+            <label for="title">Story Title *</label>
+            <input type="text" id="title" name="title" class="form-control" required 
+                   placeholder="Enter story title">
+        </div>
+        
+        <div class="form-group">
+            <label for="description">Story Description</label>
+            <textarea id="description" name="description" class="form-control" rows="3" 
+                      placeholder="Enter story description"></textarea>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="cover_image">Cover Image</label>
+                <input type="file" id="cover_image" name="cover_image" class="form-control" accept="image/*">
+                <small class="form-text">Recommended size: 800x600px. Max file size: 5MB</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="is_published" class="checkbox-label">
+                    <input type="checkbox" id="is_published" name="is_published">
+                    <span>Publish story immediately</span>
+                </label>
+                <small class="form-text">If checked, story will be visible to assigned students</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="form-section">
+        <h2><i class="fas fa-users"></i> Assign to Classes</h2>
+        <div class="form-group">
+            <label>Select Classes</label>
+            <div class="classes-grid">
+                {% for class_level in classes %}
+                <label class="class-checkbox">
+                    <input type="checkbox" name="assigned_classes" value="{{ class_level }}">
+                    <span>{{ class_level }}</span>
+                </label>
+                {% endfor %}
+                
+                {% if not classes %}
+                <p class="text-muted">No classes found. Students need to register first.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="form-section">
+        <h2><i class="fas fa-file-image"></i> Story Pages</h2>
+        
+        <div id="pages-container">
+            <div class="page-item" data-page="1">
+                <div class="page-header">
+                    <h3>Page 1</h3>
+                    <button type="button" class="btn btn-danger btn-sm remove-page" onclick="removePage(1)">
+                        <i class="fas fa-times"></i> Remove
+                    </button>
+                </div>
+                
+                <div class="page-content">
+                    <div class="form-group">
+                        <label>Page Image *</label>
+                        <div class="image-upload">
+                            <input type="file" class="page-image" accept="image/*" name="page_image_1" data-page="1" required>
+                            <div class="upload-preview" id="preview-1">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p>Click to upload page image</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Text Content *</label>
+                        <textarea class="page-text form-control" rows="4" name="page_text_1"
+                                  placeholder="Enter text content for this page..." data-page="1" required></textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Important Notes</label>
+                            <textarea class="page-notes form-control" rows="2" name="page_notes_1"
+                                      placeholder="Enter important notes..." data-page="1"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Duration (seconds)</label>
+                            <input type="number" class="page-duration form-control" name="page_duration_1" value="10" min="5" max="60" data-page="1">
+                            <small class="form-text">Time to display this page</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <button type="button" id="add-page" class="btn btn-outline">
+            <i class="fas fa-plus"></i> Add Another Page
+        </button>
+    </div>
+    
+    <input type="hidden" name="pages_data" id="pages-data">
+    
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary btn-lg">
+            <i class="fas fa-save"></i> Save Story
+        </button>
+        <a href="{{ url_for('teacher_stories') }}" class="btn btn-outline">
+            <i class="fas fa-times"></i> Cancel
+        </a>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let pageCount = 1;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Add page button
+    document.getElementById('add-page').addEventListener('click', addPage);
+    
+    // Image upload preview
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('page-image')) {
+            const page = e.target.dataset.page;
+            const file = e.target.files[0];
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById(`preview-${page}`);
+                    preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+    });
+    
+    // Form submission
+    document.getElementById('story-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const pages = collectPagesData();
+        document.getElementById('pages-data').value = JSON.stringify(pages);
+        
+        this.submit();
+    });
+});
+
+function addPage() {
+    pageCount++;
+    
+    const pagesContainer = document.getElementById('pages-container');
+    const newPage = document.createElement('div');
+    newPage.className = 'page-item';
+    newPage.dataset.page = pageCount;
+    newPage.innerHTML = `
+        <div class="page-header">
+            <h3>Page ${pageCount}</h3>
+            <button type="button" class="btn btn-danger btn-sm remove-page" onclick="removePage(${pageCount})">
+                <i class="fas fa-times"></i> Remove
+            </button>
+        </div>
+        
+        <div class="page-content">
+            <div class="form-group">
+                <label>Page Image *</label>
+                <div class="image-upload">
+                    <input type="file" class="page-image" accept="image/*" name="page_image_${pageCount}" data-page="${pageCount}" required>
+                    <div class="upload-preview" id="preview-${pageCount}">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Click to upload page image</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Text Content *</label>
+                <textarea class="page-text form-control" rows="4" name="page_text_${pageCount}"
+                          placeholder="Enter text content for this page..." data-page="${pageCount}" required></textarea>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Important Notes</label>
+                    <textarea class="page-notes form-control" rows="2" name="page_notes_${pageCount}"
+                              placeholder="Enter important notes..." data-page="${pageCount}"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Duration (seconds)</label>
+                    <input type="number" class="page-duration form-control" name="page_duration_${pageCount}" value="10" min="5" max="60" data-page="${pageCount}">
+                    <small class="form-text">Time to display this page</small>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    pagesContainer.appendChild(newPage);
+}
+
+function removePage(pageNumber) {
+    if (pageCount > 1) {
+        const pageElement = document.querySelector(`[data-page="${pageNumber}"]`);
+        if (pageElement) {
+            pageElement.remove();
+            
+            // Renumber remaining pages
+            const pages = document.querySelectorAll('.page-item');
+            pages.forEach((page, index) => {
+                const newPageNumber = index + 1;
+                page.dataset.page = newPageNumber;
+                page.querySelector('h3').textContent = `Page ${newPageNumber}`;
+                page.querySelector('.remove-page').setAttribute('onclick', `removePage(${newPageNumber})`);
+                
+                // Update all inputs within this page
+                page.querySelectorAll('[data-page]').forEach(input => {
+                    input.dataset.page = newPageNumber;
+                    if (input.classList.contains('page-image')) {
+                        input.name = `page_image_${newPageNumber}`;
+                        input.nextElementSibling.id = `preview-${newPageNumber}`;
+                    }
+                    if (input.classList.contains('page-text')) {
+                        input.name = `page_text_${newPageNumber}`;
+                    }
+                    if (input.classList.contains('page-notes')) {
+                        input.name = `page_notes_${newPageNumber}`;
+                    }
+                    if (input.classList.contains('page-duration')) {
+                        input.name = `page_duration_${newPageNumber}`;
+                    }
+                });
+            });
+            
+            pageCount = pages.length;
+        }
+    } else {
+        alert('At least one page is required!');
+    }
+}
+
+function collectPagesData() {
+    const pages = [];
+    
+    for (let i = 1; i <= pageCount; i++) {
+        const pageElement = document.querySelector(`[data-page="${i}"]`);
+        if (pageElement) {
+            const text = pageElement.querySelector('.page-text').value;
+            const notes = pageElement.querySelector('.page-notes').value;
+            const duration = pageElement.querySelector('.page-duration').value;
+            
+            if (text.trim()) {
+                pages.push({
+                    page_number: i,
+                    text: text,
+                    notes: notes,
+                    duration: parseInt(duration) || 10
+                });
+            }
+        }
+    }
+    
+    return pages;
+}
+</script>
+{% endblock %}

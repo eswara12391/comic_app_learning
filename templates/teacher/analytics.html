@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics - Comic Learning App{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/teacher.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-chart-bar"></i> Analytics Dashboard</h1>
+    <p>Track student performance and learning progress</p>
+</div>
+
+<div class="stats-cards">
+    <div class="stat-card">
+        <div class="stat-icon primary">
+            <i class="fas fa-book"></i>
+        </div>
+        <div class="stat-content">
+            <h3>{{ overall_stats.total_stories or 0 }}</h3>
+            <p>Total Stories</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon success">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="stat-content">
+            <h3>{{ overall_stats.total_students or 0 }}</h3>
+            <p>Total Students</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon info">
+            <i class="fas fa-question-circle"></i>
+        </div>
+        <div class="stat-content">
+            <h3>{{ overall_stats.total_quiz_attempts or 0 }}</h3>
+            <p>Quiz Attempts</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon warning">
+            <i class="fas fa-chart-line"></i>
+        </div>
+        <div class="stat-content">
+            <h3>{{ (overall_stats.overall_avg_score or 0)|round(1) }}%</h3>
+            <p>Avg Quiz Score</p>
+        </div>
+    </div>
+</div>
+
+<div class="analytics-grid">
+    <div class="analytics-card">
+        <div class="card-header">
+            <h3><i class="fas fa-chart-pie"></i> Story Performance</h3>
+        </div>
+        <div class="card-body">
+            {% if story_analytics %}
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Story</th>
+                            <th>Assigned</th>
+                            <th>Completed</th>
+                            <th>Avg Score</th>
+                            <th>Pass Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for story in story_analytics %}
+                        <tr>
+                            <td>{{ story.title }}</td>
+                            <td>{{ story.students_assigned or 0 }}</td>
+                            <td>{{ story.students_completed or 0 }}</td>
+                            <td>
+                                {% if story.avg_quiz_score %}
+                                <span class="score-badge {% if story.avg_quiz_score >= 60 %}score-good{% elif story.avg_quiz_score >= 40 %}score-average{% else %}score-poor{% endif %}">
+                                    {{ story.avg_quiz_score|round(1) }}%
+                                </span>
+                                {% else %}
+                                <span class="text-muted">No quizzes</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if story.students_assigned > 0 %}
+                                {% set pass_rate = ((story.students_passed or 0) / story.students_assigned * 100)|round(1) %}
+                                <div class="progress-bar small">
+                                    <div class="progress-fill" style="width: {{ pass_rate }}%"></div>
+                                </div>
+                                <span>{{ pass_rate }}%</span>
+                                {% else %}
+                                <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p>No story analytics available yet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="analytics-card">
+        <div class="card-header">
+            <h3><i class="fas fa-graduation-cap"></i> Class Performance</h3>
+        </div>
+        <div class="card-body">
+            {% if class_analytics %}
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Class</th>
+                            <th>Students</th>
+                            <th>Completion Rate</th>
+                            <th>Avg Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for class_stat in class_analytics %}
+                        <tr>
+                            <td>{{ class_stat.class_level }}</td>
+                            <td>{{ class_stat.total_students }}</td>
+                            <td>
+                                <div class="progress-bar small">
+                                    <div class="progress-fill" style="width: {{ class_stat.completion_rate|round(1) }}%"></div>
+                                </div>
+                                <span>{{ class_stat.completion_rate|round(1) }}%</span>
+                            </td>
+                            <td>
+                                {% if class_stat.avg_quiz_score %}
+                                <span class="score-badge {% if class_stat.avg_quiz_score >= 60 %}score-good{% elif class_stat.avg_quiz_score >= 40 %}score-average{% else %}score-poor{% endif %}">
+                                    {{ class_stat.avg_quiz_score|round(1) }}%
+                                </span>
+                                {% else %}
+                                <span class="text-muted">No quizzes</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p>No class analytics available yet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="analytics-card">
+        <div class="card-header">
+            <h3><i class="fas fa-history"></i> Recent Quiz Results</h3>
+        </div>
+        <div class="card-body">
+            {% if recent_quiz_results %}
+            <div class="card-list">
+                {% for result in recent_quiz_results %}
+                <div class="list-item">
+                    <div class="item-info">
+                        <h4>{{ result.story_title }}</h4>
+                        <p class="text-muted">
+                            {{ result.first_name }} {{ result.last_name }} • {{ result.class_level }}
+                        </p>
+                        <small class="text-muted">
+                            {{ result.submitted_at.strftime('%Y-%m-%d %H:%M') }}
+                        </small>
+                    </div>
+                    <div class="item-score">
+                        <span class="score-badge {% if result.score >= 60 %}score-good{% elif result.score >= 40 %}score-average{% else %}score-poor{% endif %}">
+                            {{ result.score|round(1) }}%
+                        </span>
+                        <span class="badge {% if result.result == 'Passed' %}badge-success{% else %}badge-danger{% endif %}">
+                            {{ result.result }}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p>No recent quiz results.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="analytics-card">
+        <div class="card-header">
+            <h3><i class="fas fa-trophy"></i> Top Performers</h3>
+        </div>
+        <div class="card-body">
+            <div class="empty-state">
+                <p>Top performers data will be available soon.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

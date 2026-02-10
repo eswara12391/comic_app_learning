@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile - Comic Learning App{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/student.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <div class="profile-header">
+        <div class="profile-avatar">
+            {% if student.profile_photo %}
+            <img src="{{ url_for('static', filename='uploads/profiles/' + student.profile_photo) }}" 
+                 alt="Profile Photo" class="avatar-img">
+            {% else %}
+            <div class="avatar-placeholder">
+                <i class="fas fa-user"></i>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="profile-info">
+            <h1>{{ student.first_name }} {{ student.last_name }}</h1>
+            <p class="profile-email">{{ session.email }}</p>
+            
+            <div class="profile-badges">
+                <span class="badge badge-primary">
+                    <i class="fas fa-graduation-cap"></i> {{ student.class_level }}
+                </span>
+                <span class="badge badge-secondary">
+                    <i class="fas fa-id-card"></i> Roll No: {{ student.roll_number }}
+                </span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="profile-content">
+        <div class="profile-section">
+            <h2><i class="fas fa-user-circle"></i> Personal Information</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Full Name</span>
+                    <span class="info-value">{{ student.first_name }} {{ student.middle_name or '' }} {{ student.last_name }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Date of Birth</span>
+                    <span class="info-value">{{ student.date_of_birth }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Gender</span>
+                    <span class="info-value">{{ student.gender|title }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Phone</span>
+                    <span class="info-value">{{ student.phone or 'Not provided' }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Address</span>
+                    <span class="info-value">{{ student.address }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="profile-section">
+            <h2><i class="fas fa-users"></i> Parent/Guardian Information</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Name</span>
+                    <span class="info-value">{{ student.parent_full_name }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Relationship</span>
+                    <span class="info-value">{{ student.parent_relationship|title }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Email</span>
+                    <span class="info-value">{{ student.parent_email or 'Not provided' }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Phone</span>
+                    <span class="info-value">{{ student.parent_phone }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="profile-section">
+            <h2><i class="fas fa-chart-line"></i> Learning Statistics</h2>
+            <div class="stats-cards">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-book-open"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ reading_stats.completed_stories or 0 }}</h3>
+                        <p>Stories Completed</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-question-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ reading_stats.total_stories_read or 0 }}</h3>
+                        <p>Total Stories Read</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ quiz_results|length }}</h3>
+                        <p>Quizzes Taken</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {% if quiz_results %}
+        <div class="profile-section">
+            <h2><i class="fas fa-history"></i> Recent Quiz Results</h2>
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Story</th>
+                            <th>Score</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result in quiz_results %}
+                        <tr>
+                            <td>{{ result.story_title }}</td>
+                            <td>
+                                <span class="score-badge {% if result.score >= 60 %}score-good{% elif result.score >= 40 %}score-average{% else %}score-poor{% endif %}">
+                                    {{ result.score|round(1) }}%
+                                </span>
+                            </td>
+                            <td>{{ result.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                <!-- {% if result.score >= 60 %}                              
+                                <span class="badge badge-success">Passed</span>
+                                {% else %}
+                                <span class="badge badge-danger">Failed</span>
+                                {% endif %} -->
+                                {% if result.score >= result.passing_score %}
+                                <span class="badge badge-success" title="Passing Score: {{ result.passing_score }}%">Passed</span>
+                                {% else %}
+                                <span class="badge badge-danger" title="Passing Score: {{ result.passing_score }}%">Failed</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

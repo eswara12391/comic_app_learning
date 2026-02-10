@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Comic Learning App{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% block styles %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="{{ url_for('index') }}" class="logo">
+                <i class="fas fa-book-open"></i> StorySpark Learning
+            </a>
+            <div class="nav-links">
+                {% if session.user_type == 'teacher' %}
+                    <a href="{{ url_for('teacher_dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                    <a href="{{ url_for('teacher_stories') }}"><i class="fas fa-book"></i> My Stories</a>
+                    <a href="{{ url_for('view_students') }}"><i class="fas fa-users"></i> Students</a>
+                    <a href="{{ url_for('analytics') }}"><i class="fas fa-chart-bar"></i> Analytics</a>
+                {% elif session.user_type == 'student' %}
+                    <a href="{{ url_for('student_dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                    <a href="{{ url_for('student_profile') }}"><i class="fas fa-user"></i> Profile</a>
+                {% endif %}
+                {% if session.user_id %}
+                    <span class="user-info">
+                        <i class="fas fa-user-circle"></i> {{ session.email }}
+                    </span>
+                    <a href="{{ url_for('logout') }}" class="btn btn-danger">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="btn btn-primary">
+                        <i class="fas fa-sign-in-alt"></i> Login
+                    </a>
+                    <a href="{{ url_for('register_student') }}" class="btn btn-outline">
+                        <i class="fas fa-user-graduate"></i> Student
+                    </a>
+                    <a href="{{ url_for('register_teacher') }}" class="btn btn-outline">
+                        <i class="fas fa-chalkboard-teacher"></i> Teacher
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <main class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' %}exclamation-circle{% else %}info-circle{% endif %}"></i>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2026 StorySpark Learning App. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

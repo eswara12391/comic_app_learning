@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome to Comic Learning App{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <div class="hero-content">
+        <h1>Welcome to StorySpark Learning</h1>
+        <p class="subtitle">Where stories spark curiosity and learning</p>
+        <div class="hero-buttons">
+            {% if not session.user_id %}
+                <a href="{{ url_for('register_student') }}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-user-graduate"></i> Join as Student
+                </a>
+                <a href="{{ url_for('register_teacher') }}" class="btn btn-secondary btn-lg">
+                    <i class="fas fa-chalkboard-teacher"></i> Join as Teacher
+                </a>
+            {% else %}
+                {% if session.user_type == 'teacher' %}
+                    <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-tachometer-alt"></i> Go to Dashboard
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('student_dashboard') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-tachometer-alt"></i> Go to Dashboard
+                    </a>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="features">
+    <div class="container">
+        <h2 class="section-title">How It Works</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-book"></i>
+                </div>
+                <h3>Interactive Stories</h3>
+                <p>Teachers create engaging comic stories with images, text, and narration.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-headphones"></i>
+                </div>
+                <h3>Automatic Narration</h3>
+                <p>Stories come alive with automatic text-to-speech narration.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-question-circle"></i>
+                </div>
+                <h3>Interactive Quizzes</h3>
+                <p>Test comprehension with quizzes at the end of each story.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h3>Real-time Analytics</h3>
+                <p>Teachers monitor student progress and performance in real-time.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- <div class="cta">
+    <div class="container">
+        <h2>Ready to Start Learning?</h2>
+        <p>Join thousands of students and teachers using our platform</p>
+        {% if not session.user_id %}
+            <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-sign-in-alt"></i> Login Now
+            </a>
+        {% endif %}
+    </div>
+</div> -->
+{% endblock %}

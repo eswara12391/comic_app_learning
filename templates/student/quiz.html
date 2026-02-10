@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}Quiz - {{ quiz.title }} - Comic Learning App{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/student.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="quiz-container">
+    <div class="quiz-header">
+        <h1>{{ quiz.title }}</h1>
+        <p class="quiz-subtitle">{{ quiz.description }}</p>
+        
+        <div class="quiz-info">
+            <div class="info-item">
+                <i class="fas fa-clock"></i>
+                <span>Time Limit: {{ quiz.time_limit // 60 }} minutes</span>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-percentage"></i>
+                <span>Passing Score: {{ quiz.passing_score }}%</span>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-question-circle"></i>
+                <span>Questions: {{ questions|length }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- In quiz.html, ensure the form doesn't have any pre-filled answers -->
+    <form method="POST" action="{{ url_for('take_quiz', story_id=quiz.story_id) }}" id="quiz-form">
+        <input type="hidden" name="time_taken" id="time-taken" value="0">
+        
+        <div class="timer-container">
+            <div class="timer">
+                <i class="fas fa-hourglass-half"></i>
+                <span id="timer-display">00:00</span>
+            </div>
+        </div>
+        
+        <div class="questions-container">
+            {% for question in questions %}
+            <div class="question-card">
+                <div class="question-header">
+                    <h3>Question {{ loop.index }}</h3>
+                    <span class="points">({{ question.points }} point{% if question.points != 1 %}s{% endif %})</span>
+                </div>
+                
+                <div class="question-text">
+                    <p>{{ question.question_text }}</p>
+                </div>
+                
+                <div class="question-options">
+                    {% if question.question_type == 'multiple_choice' %}
+                        {% if question.option_a %}
+                        <div class="option">
+                            <input type="radio" id="q{{ question.id }}_a" name="question_{{ question.id }}" value="A" required>
+                            <label for="q{{ question.id }}_a">
+                                <span class="option-letter">A</span>
+                                {{ question.option_a }}
+                            </label>
+                        </div>
+                        {% endif %}
+                        
+                        {% if question.option_b %}
+                        <div class="option">
+                            <input type="radio" id="q{{ question.id }}_b" name="question_{{ question.id }}" value="B">
+                            <label for="q{{ question.id }}_b">
+                                <span class="option-letter">B</span>
+                                {{ question.option_b }}
+                            </label>
+                        </div>
+                        {% endif %}
+                        
+                        {% if question.option_c %}
+                        <div class="option">
+                            <input type="radio" id="q{{ question.id }}_c" name="question_{{ question.id }}" value="C">
+                            <label for="q{{ question.id }}_c">
+                                <span class="option-letter">C</span>
+                                {{ question.option_c }}
+                            </label>
+                        </div>
+                        {% endif %}
+                        
+                        {% if question.option_d %}
+                        <div class="option">
+                            <input type="radio" id="q{{ question.id }}_d" name="question_{{ question.id }}" value="D">
+                            <label for="q{{ question.id }}_d">
+                                <span class="option-letter">D</span>
+                                {{ question.option_d }}
+                            </label>
+                        </div>
+                        {% endif %}
+                    
+                    {% elif question.question_type == 'true_false' %}
+                        <div class="option">
+                            <input type="radio" id="q{{ question.id }}_true" name="question_{{ question.id }}" value="True" required>
+                            <label for="q{{ question.id }}_true">
+                                <span class="option-letter">T</span>
+                                True
+                            </label>
+                        </div>
+                        <div class="option">
+                            <input type="radio" id="q{{ question.id }}_false" name="question_{{ question.id }}" value="False">
+                            <label for="q{{ question.id }}_false">
+                                <span class="option-letter">F</span>
+                                False
+                            </label>
+                        </div>
+                    
+                    {% else %}
+                        <div class="short-answer">
+                            <textarea id="q{{ question.id }}" name="question_{{ question.id }}" 
+                                      class="form-control" rows="3" placeholder="Type your answer here..." required></textarea>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="quiz-actions">
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-paper-plane"></i> Submit Quiz
+            </button>
+            <a href="{{ url_for('student_dashboard') }}" class="btn btn-outline">
+                <i class="fas fa-times"></i> Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+<script>
+const timeLimit = {{ quiz.time_limit }}; // seconds
+let remainingTime = timeLimit;
+let timerInterval;
+
+function updateTimerDisplay() {
+    const minutes = Math.floor(remainingTime / 60);
+    const seconds = remainingTime % 60;
+    document.getElementById('timer-display').textContent =
+        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function startTimer() {
+    updateTimerDisplay();
+
+    timerInterval = setInterval(() => {
+        remainingTime--;
+
+        document.getElementById('time-taken').value = timeLimit - remainingTime;
+
+        updateTimerDisplay();
+
+        if (remainingTime <= 0) {
+            clearInterval(timerInterval);
+            alert("Time is up! Submitting your quiz...");
+
+            // Remove required attributes to prevent submit blocking
+            document.querySelectorAll('[required]')
+                .forEach(el => el.removeAttribute('required'));
+
+            document.getElementById('quiz-form').submit();
+        }
+    }, 1000);
+}
+
+document.addEventListener('DOMContentLoaded', startTimer);
+</script>
+
+
+<!-- {% block scripts %}
+<script>
+let timeLimit = {{ quiz.time_limit }}; // in seconds
+let timeTaken = 0;
+let timerInterval;
+
+function startTimer() {
+    timerInterval = setInterval(() => {
+        timeTaken++;
+        
+        // Update hidden input
+        document.getElementById('time-taken').value = timeTaken;
+        
+        // Update display
+        const minutes = Math.floor(timeTaken / 60);
+        const seconds = timeTaken % 60;
+        document.getElementById('timer-display').textContent = 
+            `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        
+        // Check if time limit reached
+        if (timeTaken >= timeLimit) {
+            clearInterval(timerInterval);
+            alert('Time is up! Submitting your quiz...');
+            document.getElementById('quiz-form').submit();
+        }
+    }, 1000);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    startTimer();
+    
+    // Warn before leaving page
+    window.addEventListener('beforeunload', function(e) {
+        if (timeTaken < timeLimit) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        }
+    });
+});
+</script>
+{% endblock %} -->

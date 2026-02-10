@@ -1,0 +1,440 @@
+{% extends "base.html" %}
+
+{% block title %}Create Quiz - Comic Learning App{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/teacher.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-question-circle"></i> Create Quiz</h1>
+    <p>Create a quiz for Story ID: {{ story_id }}</p>
+</div>
+
+<form method="POST" action="{{ url_for('create_quiz', story_id=story_id) }}" id="quiz-form">
+    <div class="form-section">
+        <h2><i class="fas fa-info-circle"></i> Quiz Information</h2>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="title">Quiz Title *</label>
+                <input type="text" id="title" name="title" class="form-control" required 
+                       value="{{ quiz.title if quiz else '' }}" placeholder="Enter quiz title">
+            </div>
+            
+            <div class="form-group">
+                <label for="passing_score">Passing Score (%) *</label>
+                <input type="number" id="passing_score" name="passing_score" class="form-control" 
+                       value="{{ quiz.passing_score if quiz else '60' }}" min="0" max="100" required>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="time_limit">Time Limit (minutes)</label>
+                <input type="number" id="time_limit" name="time_limit" class="form-control" 
+                       value="{{ (quiz.time_limit // 60) if quiz else '10' }}" min="1" max="120">
+            </div>
+            
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" class="form-control" rows="2">{{ quiz.description if quiz else '' }}</textarea>
+            </div>
+        </div>
+    </div>
+    
+    <div class="form-section">
+        <h2><i class="fas fa-list-ol"></i> Questions</h2>
+        
+        <div id="questions-container">
+            {% if quiz and questions %}
+                {% for question in questions %}
+                <div class="question-item" data-question="{{ loop.index }}">
+                    <div class="question-header">
+                        <h3>Question {{ loop.index }}</h3>
+                        <button type="button" class="btn btn-danger btn-sm remove-question" onclick="removeQuestion({{ loop.index }})">
+                            <i class="fas fa-times"></i> Remove
+                        </button>
+                    </div>
+                    
+                    <div class="question-content">
+                        <div class="form-group">
+                            <label>Question Text *</label>
+                            <textarea class="question-text form-control" rows="3" required>{{ question.question_text }}</textarea>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Question Type *</label>
+                                <select class="question-type form-control" onchange="changeQuestionType({{ loop.index }})">
+                                    <option value="multiple_choice" {% if question.question_type == 'multiple_choice' %}selected{% endif %}>Multiple Choice</option>
+                                    <option value="true_false" {% if question.question_type == 'true_false' %}selected{% endif %}>True/False</option>
+                                    <option value="short_answer" {% if question.question_type == 'short_answer' %}selected{% endif %}>Short Answer</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Points</label>
+                                <input type="number" class="question-points form-control" value="{{ question.points }}" min="1" max="10">
+                            </div>
+                        </div>
+                        
+                        <div class="question-options" id="options-{{ loop.index }}">
+                            {% if question.question_type == 'multiple_choice' %}
+                            <div class="form-group">
+                                <label>Option A *</label>
+                                <input type="text" class="option-a form-control" value="{{ question.option_a }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Option B *</label>
+                                <input type="text" class="option-b form-control" value="{{ question.option_b }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Option C</label>
+                                <input type="text" class="option-c form-control" value="{{ question.option_c or '' }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Option D</label>
+                                <input type="text" class="option-d form-control" value="{{ question.option_d or '' }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Correct Answer *</label>
+                                <select class="correct-answer form-control" id="correct-answer-{{ loop.index }}">
+                                    <option value="A" {% if question.correct_answer == 'A' %}selected{% endif %}>Option A</option>
+                                    <option value="B" {% if question.correct_answer == 'B' %}selected{% endif %}>Option B</option>
+                                    <option value="C" {% if question.correct_answer == 'C' %}selected{% endif %}>Option C</option>
+                                    <option value="D" {% if question.correct_answer == 'D' %}selected{% endif %}>Option D</option>
+                                </select>
+                            </div>
+                            {% elif question.question_type == 'true_false' %}
+                            <div class="form-group">
+                                <label>Correct Answer *</label>
+                                <select class="correct-answer form-control">
+                                    <option value="True" {% if question.correct_answer == 'True' %}selected{% endif %}>True</option>
+                                    <option value="False" {% if question.correct_answer == 'False' %}selected{% endif %}>False</option>
+                                </select>
+                            </div>
+                            {% else %}
+                            <div class="form-group">
+                                <label>Correct Answer *</label>
+                                <input type="text" class="correct-answer form-control" value="{{ question.correct_answer }}" required>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Explanation (Optional)</label>
+                            <textarea class="explanation form-control" rows="2">{{ question.explanation or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="question-item" data-question="1">
+                <div class="question-header">
+                    <h3>Question 1</h3>
+                    <button type="button" class="btn btn-danger btn-sm remove-question" onclick="removeQuestion(1)">
+                        <i class="fas fa-times"></i> Remove
+                    </button>
+                </div>
+                
+                <div class="question-content">
+                    <div class="form-group">
+                        <label>Question Text *</label>
+                        <textarea class="question-text form-control" rows="3" required placeholder="Enter your question..."></textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Question Type *</label>
+                            <select class="question-type form-control" onchange="changeQuestionType(1)">
+                                <option value="multiple_choice">Multiple Choice</option>
+                                <option value="true_false">True/False</option>
+                                <option value="short_answer">Short Answer</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Points</label>
+                            <input type="number" class="question-points form-control" value="1" min="1" max="10">
+                        </div>
+                    </div>
+                    
+                    <div class="question-options" id="options-1">
+                        <div class="form-group">
+                            <label>Option A *</label>
+                            <input type="text" class="option-a form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Option B *</label>
+                            <input type="text" class="option-b form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Option C</label>
+                            <input type="text" class="option-c form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Option D</label>
+                            <input type="text" class="option-d form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Correct Answer *</label>
+                            <select class="correct-answer form-control" id="correct-answer-1">
+                                <option value="A">Option A</option>
+                                <option value="B">Option B</option>
+                                <option value="C">Option C</option>
+                                <option value="D">Option D</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Explanation (Optional)</label>
+                        <textarea class="explanation form-control" rows="2" placeholder="Add explanation for the correct answer..."></textarea>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <button type="button" id="add-question" class="btn btn-outline">
+            <i class="fas fa-plus"></i> Add Another Question
+        </button>
+    </div>
+    
+    <input type="hidden" name="questions_data" id="questions-data">
+    
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary btn-lg">
+            <i class="fas fa-save"></i> Save Quiz
+        </button>
+        <a href="{{ url_for('view_story_details', story_id=story_id) }}" class="btn btn-outline">
+            <i class="fas fa-times"></i> Cancel
+        </a>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let questionCount = {{ questions|length if questions else 1 }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('add-question').addEventListener('click', addQuestion);
+    
+    document.getElementById('quiz-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const questions = collectQuestionsData();
+        document.getElementById('questions-data').value = JSON.stringify(questions);
+        
+        this.submit();
+    });
+});
+
+function addQuestion() {
+    questionCount++;
+    
+    const questionsContainer = document.getElementById('questions-container');
+    const newQuestion = document.createElement('div');
+    newQuestion.className = 'question-item';
+    newQuestion.dataset.question = questionCount;
+    newQuestion.innerHTML = `
+        <div class="question-header">
+            <h3>Question ${questionCount}</h3>
+            <button type="button" class="btn btn-danger btn-sm remove-question" onclick="removeQuestion(${questionCount})">
+                <i class="fas fa-times"></i> Remove
+            </button>
+        </div>
+        
+        <div class="question-content">
+            <div class="form-group">
+                <label>Question Text *</label>
+                <textarea class="question-text form-control" rows="3" required placeholder="Enter your question..."></textarea>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Question Type *</label>
+                    <select class="question-type form-control" onchange="changeQuestionType(${questionCount})">
+                        <option value="multiple_choice">Multiple Choice</option>
+                        <option value="true_false">True/False</option>
+                        <option value="short_answer">Short Answer</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Points</label>
+                    <input type="number" class="question-points form-control" value="1" min="1" max="10">
+                </div>
+            </div>
+            
+            <div class="question-options" id="options-${questionCount}">
+                <div class="form-group">
+                    <label>Option A *</label>
+                    <input type="text" class="option-a form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Option B *</label>
+                    <input type="text" class="option-b form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Option C</label>
+                    <input type="text" class="option-c form-control">
+                </div>
+                <div class="form-group">
+                    <label>Option D</label>
+                    <input type="text" class="option-d form-control">
+                </div>
+                <div class="form-group">
+                    <label>Correct Answer *</label>
+                    <select class="correct-answer form-control" id="correct-answer-${questionCount}">
+                        <option value="A">Option A</option>
+                        <option value="B">Option B</option>
+                        <option value="C">Option C</option>
+                        <option value="D">Option D</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Explanation (Optional)</label>
+                <textarea class="explanation form-control" rows="2" placeholder="Add explanation for the correct answer..."></textarea>
+            </div>
+        </div>
+    `;
+    
+    questionsContainer.appendChild(newQuestion);
+}
+
+function removeQuestion(questionNumber) {
+    if (questionCount > 1) {
+        const questionElement = document.querySelector(`[data-question="${questionNumber}"]`);
+        if (questionElement) {
+            questionElement.remove();
+            
+            // Renumber remaining questions
+            const questions = document.querySelectorAll('.question-item');
+            questions.forEach((question, index) => {
+                const newQuestionNumber = index + 1;
+                question.dataset.question = newQuestionNumber;
+                question.querySelector('h3').textContent = `Question ${newQuestionNumber}`;
+                question.querySelector('.remove-question').setAttribute('onclick', `removeQuestion(${newQuestionNumber})`);
+                
+                // Update options container ID
+                const optionsContainer = question.querySelector('.question-options');
+                if (optionsContainer) {
+                    optionsContainer.id = `options-${newQuestionNumber}`;
+                }
+                
+                // Update question type change handler
+                const typeSelect = question.querySelector('.question-type');
+                typeSelect.setAttribute('onchange', `changeQuestionType(${newQuestionNumber})`);
+            });
+            
+            questionCount = questions.length;
+        }
+    }
+}
+
+function changeQuestionType(questionNumber) {
+    const questionElement = document.querySelector(`[data-question="${questionNumber}"]`);
+    const typeSelect = questionElement.querySelector('.question-type');
+    const optionsContainer = questionElement.querySelector('.question-options');
+    const selectedType = typeSelect.value;
+    
+    if (selectedType === 'multiple_choice') {
+        optionsContainer.innerHTML = `
+            <div class="form-group">
+                <label>Option A *</label>
+                <input type="text" class="option-a form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Option B *</label>
+                <input type="text" class="option-b form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Option C</label>
+                <input type="text" class="option-c form-control">
+            </div>
+            <div class="form-group">
+                <label>Option D</label>
+                <input type="text" class="option-d form-control">
+            </div>
+            <div class="form-group">
+                <label>Correct Answer *</label>
+                <select class="correct-answer form-control" id="correct-answer-${questionNumber}">
+                    <option value="A">Option A</option>
+                    <option value="B">Option B</option>
+                    <option value="C">Option C</option>
+                    <option value="D">Option D</option>
+                </select>
+            </div>
+        `;
+    } else if (selectedType === 'true_false') {
+        optionsContainer.innerHTML = `
+            <div class="form-group">
+                <label>Correct Answer *</label>
+                <select class="correct-answer form-control">
+                    <option value="True">True</option>
+                    <option value="False">False</option>
+                </select>
+            </div>
+        `;
+    } else {
+        optionsContainer.innerHTML = `
+            <div class="form-group">
+                <label>Correct Answer *</label>
+                <input type="text" class="correct-answer form-control" required>
+            </div>
+        `;
+    }
+}
+
+function collectQuestionsData() {
+    const questions = [];
+    
+    const questionElements = document.querySelectorAll('.question-item');
+    
+    questionElements.forEach((questionElement, index) => {
+        const questionNumber = index + 1;
+        const text = questionElement.querySelector('.question-text')?.value || '';
+        const type = questionElement.querySelector('.question-type')?.value || '';
+        const points = questionElement.querySelector('.question-points')?.value || '1';
+        const explanation = questionElement.querySelector('.explanation')?.value || '';
+        
+        let correctAnswer = '';
+        let optionA = '', optionB = '', optionC = '', optionD = '';
+        
+        if (type === 'multiple_choice') {
+            optionA = questionElement.querySelector('.option-a')?.value || '';
+            optionB = questionElement.querySelector('.option-b')?.value || '';
+            optionC = questionElement.querySelector('.option-c')?.value || '';
+            optionD = questionElement.querySelector('.option-d')?.value || '';
+            correctAnswer = questionElement.querySelector('.correct-answer')?.value || '';
+        } else if (type === 'true_false') {
+            correctAnswer = questionElement.querySelector('.correct-answer')?.value || '';
+        } else {
+            correctAnswer = questionElement.querySelector('.correct-answer')?.value || '';
+        }
+        
+        if (text.trim() && correctAnswer.trim()) {
+            questions.push({
+                text: text,
+                type: type,
+                points: parseInt(points) || 1,
+                correct_answer: correctAnswer,
+                option_a: optionA,
+                option_b: optionB,
+                option_c: optionC,
+                option_d: optionD,
+                explanation: explanation
+            });
+        }
+    });
+    
+    return questions;
+}
+</script>
+{% endblock %}

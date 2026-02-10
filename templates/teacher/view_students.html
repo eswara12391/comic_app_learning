@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}View Students - Comic Learning App{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/teacher.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-users"></i> Students</h1>
+    <p>View and manage all registered students</p>
+</div>
+
+<div class="stats-cards">
+    {% for stat in class_stats %}
+    <div class="stat-card small">
+        <div class="stat-icon">
+            <i class="fas fa-graduation-cap"></i>
+        </div>
+        <div class="stat-content">
+            <h3>{{ stat.student_count }}</h3>
+            <p>{{ stat.class_level }}</p>
+        </div>
+    </div>
+    {% endfor %}
+    
+    <div class="stat-card small">
+        <div class="stat-icon">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="stat-content">
+            <h3>{{ students|length }}</h3>
+            <p>Total Students</p>
+        </div>
+    </div>
+</div>
+
+<div class="filters">
+    <div class="filter-group">
+        <input type="text" id="search-students" placeholder="Search students..." class="form-control">
+    </div>
+    <div class="filter-group">
+        <select id="filter-class" class="form-control">
+            <option value="">All Classes</option>
+            {% for stat in class_stats %}
+            <option value="{{ stat.class_level }}">{{ stat.class_level }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+{% if students %}
+<div class="table-responsive">
+    <table class="data-table" id="students-table">
+        <thead>
+            <tr>
+                <th>Student</th>
+                <th>Class</th>
+                <th>Roll No</th>
+                <th>Email</th>
+                <th>Stories Read</th>
+                <th>Avg Score</th>
+                <th>Joined</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for student in students %}
+            <tr>
+                <td>
+                    <div class="student-info">
+                        {% if student.profile_photo %}
+                        <img src="{{ url_for('static', filename='uploads/profiles/' + student.profile_photo) }}" 
+                             alt="{{ student.first_name }}" class="student-avatar">
+                        {% else %}
+                        <div class="student-avatar placeholder">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        {% endif %}
+                        <div class="student-details">
+                            <strong>{{ student.first_name }} {{ student.last_name }}</strong>
+                            <small>{{ student.phone or 'No phone' }}</small>
+                        </div>
+                    </div>
+                </td>
+                <td>{{ student.class_level }}</td>
+                <td>{{ student.roll_number }}</td>
+                <td>{{ student.email }}</td>
+                <td>
+                    <span class="badge {% if student.completed_stories > 0 %}badge-success{% else %}badge-secondary{% endif %}">
+                        {{ student.completed_stories or 0 }}
+                    </span>
+                </td>
+                <td>
+                    {% if student.avg_score %}
+                    <span class="score-badge {% if student.avg_score >= 60 %}score-good{% elif student.avg_score >= 40 %}score-average{% else %}score-poor{% endif %}">
+                        {{ student.avg_score|round(1) }}%
+                    </span>
+                    {% else %}
+                    <span class="text-muted">No quizzes</span>
+                    {% endif %}
+                </td>
+                <td>{{ student.account_created.strftime('%Y-%m-%d') }}</td>
+                <td>
+                    <div class="action-buttons">
+                        <a href="#" class="btn btn-sm btn-outline" title="View Profile">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        <a href="#" class="btn btn-sm btn-outline" title="Send Message">
+                            <i class="fas fa-envelope"></i>
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">
+        <i class="fas fa-users"></i>
+    </div>
+    <h3>No students registered yet</h3>
+    <p>Students need to register to appear here.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('search-students');
+    const classFilter = document.getElementById('filter-class');
+    const tableRows = document.querySelectorAll('#students-table tbody tr');
+    
+    function filterStudents() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const selectedClass = classFilter.value;
+        
+        tableRows.forEach(row => {
+            const studentName = row.cells[0].textContent.toLowerCase();
+            const studentClass = row.cells[1].textContent;
+            
+            let matchesSearch = studentName.includes(searchTerm);
+            let matchesClass = true;
+            
+            if (selectedClass && selectedClass !== '') {
+                matchesClass = studentClass === selectedClass;
+            }
+            
+            if (matchesSearch && matchesClass) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+    
+    searchInput.addEventListener('input', filterStudents);
+    classFilter.addEventListener('change', filterStudents);
+});
+</script>
+{% endblock %}

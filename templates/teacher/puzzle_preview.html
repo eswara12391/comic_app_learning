@@ -1,0 +1,873 @@
+{% extends "base.html" %}
+
+{% block title %}Puzzle Preview - Comic Learning App{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/teacher.css') }}">
+<style>
+    .puzzle-preview-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 30px;
+    }
+
+    .puzzle-preview-header {
+        background: linear-gradient(135deg, #4a6fa5 0%, #3a5980 100%);
+        color: white;
+        padding: 25px 30px;
+        border-radius: 10px 10px 0 0;
+        margin-bottom: 0;
+    }
+
+    .puzzle-preview-header h1 {
+        color: white;
+        margin-bottom: 10px;
+        font-size: 28px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .puzzle-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        margin-top: 15px;
+    }
+
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255,255,255,0.1);
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-size: 14px;
+    }
+
+    .puzzle-content {
+        background: white;
+        border-radius: 0 0 10px 10px;
+        padding: 30px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        border: 1px solid #e0e0e0;
+        border-top: none;
+    }
+
+    .puzzle-info-card {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 30px;
+        border-left: 4px solid #007bff;
+    }
+
+    .puzzle-info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-top: 15px;
+    }
+
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .info-label {
+        font-size: 13px;
+        color: #6c757d;
+        font-weight: 600;
+    }
+
+    .info-value {
+        font-size: 16px;
+        color: #2c3e50;
+        font-weight: 600;
+    }
+
+    .puzzle-preview-area {
+        background: white;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 25px;
+        margin-top: 20px;
+    }
+
+    .puzzle-title {
+        color: #2c3e50;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #f1f3f5;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 22px;
+    }
+
+    /* Word Search Puzzle Styles */
+    .word-search-preview {
+        text-align: center;
+    }
+
+    .word-search-grid {
+        display: inline-grid;
+        gap: 3px;
+        background: #e9ecef;
+        padding: 3px;
+        border-radius: 5px;
+        margin: 25px auto;
+    }
+
+    .word-search-cell {
+        width: 40px;
+        height: 40px;
+        background: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 18px;
+        border-radius: 3px;
+        border: 1px solid #dee2e6;
+    }
+
+    .word-search-cell.word-cell {
+        background: #d4edda;
+        color: #155724;
+        border-color: #c3e6cb;
+    }
+
+    .word-list-container {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 30px;
+        border: 1px solid #e9ecef;
+    }
+
+    .word-list-title {
+        font-size: 18px;
+        color: #2c3e50;
+        margin-bottom: 15px;
+        font-weight: 600;
+    }
+
+    .word-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+    }
+
+    .word-item {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 10px 15px;
+        text-align: center;
+        font-weight: 600;
+        color: #495057;
+    }
+
+    /* Multiple Choice Puzzle Styles */
+    .mcq-preview {
+        padding: 20px;
+    }
+
+    .mcq-question {
+        background: white;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        transition: all 0.3s ease;
+    }
+
+    .mcq-question:hover {
+        border-color: #007bff;
+        box-shadow: 0 5px 15px rgba(0,123,255,0.1);
+    }
+
+    .question-number {
+        display: inline-block;
+        background: #007bff;
+        color: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        text-align: center;
+        line-height: 30px;
+        font-weight: bold;
+        margin-right: 10px;
+    }
+
+    .question-text {
+        font-size: 18px;
+        color: #2c3e50;
+        margin-bottom: 15px;
+        line-height: 1.5;
+    }
+
+    .mcq-options {
+        display: grid;
+        gap: 10px;
+        margin-top: 15px;
+    }
+
+    .mcq-option {
+        padding: 12px 15px;
+        background: #f8f9fa;
+        border: 2px solid transparent;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: all 0.2s;
+    }
+
+    .mcq-option.correct {
+        background: #d4edda;
+        border-color: #28a745;
+        color: #155724;
+    }
+
+    .mcq-option.incorrect {
+        background: #f8d7da;
+        border-color: #dc3545;
+        color: #721c24;
+    }
+
+    .option-letter {
+        width: 30px;
+        height: 30px;
+        background: #6c757d;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        flex-shrink: 0;
+    }
+
+    .mcq-option.correct .option-letter {
+        background: #28a745;
+    }
+
+    /* True/False Puzzle Styles */
+    .true-false-preview {
+        padding: 20px;
+    }
+
+    .tf-statement {
+        background: white;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .statement-text {
+        font-size: 18px;
+        color: #2c3e50;
+        line-height: 1.5;
+        margin-bottom: 15px;
+    }
+
+    .tf-answer {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 20px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 16px;
+    }
+
+    .tf-answer.true {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .tf-answer.false {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    /* Fill Blank Puzzle Styles - UPDATED */
+    .fill-blank-preview {
+        padding: 20px;
+    }
+
+    .blank-sentence {
+        background: white;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .sentence-text {
+        font-size: 18px;
+        color: #2c3e50;
+        line-height: 1.6;
+        margin-bottom: 15px;
+    }
+
+    .blank-word {
+        display: inline-block;
+        padding: 5px 15px;
+        background: #fff3cd;
+        color: #856404;
+        border-radius: 4px;
+        font-weight: 600;
+        margin: 0 5px;
+        border: 1px dashed #ffeaa7;
+    }
+
+    .correct-answer {
+        display: inline-block;
+        padding: 5px 15px;
+        background: #d4edda;
+        color: #155724;
+        border-radius: 4px;
+        font-weight: 600;
+        margin: 0 5px;
+        border: 1px solid #c3e6cb;
+    }
+
+    /* FIXED: Answer sequence container */
+    .answer-sequence-container {
+        background: #e8f4f8;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 15px;
+        border-left: 4px solid #17a2b8;
+    }
+
+    .answer-sequence-title {
+        font-size: 16px;
+        color: #0c5460;
+        font-weight: 600;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .answer-sequence {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .sequence-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 15px;
+        background: white;
+        border-radius: 20px;
+        border: 1px solid #bee5eb;
+    }
+
+    .sequence-number {
+        background: #17a2b8;
+        color: white;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    .preview-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 2px solid #e9ecef;
+    }
+
+    .btn {
+        padding: 10px 25px;
+        border-radius: 6px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,123,255,0.3);
+    }
+
+    .btn-outline {
+        background: white;
+        border: 2px solid #6c757d;
+        color: #6c757d;
+    }
+
+    .btn-outline:hover {
+        background: #6c757d;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(108,117,125,0.2);
+    }
+
+    .btn-success {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+    }
+
+    .btn-success:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(40,167,69,0.3);
+    }
+
+    .page-info {
+        color: #6c757d;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-info i {
+        color: #007bff;
+    }
+
+    @media (max-width: 768px) {
+        .puzzle-preview-container {
+            padding: 15px;
+        }
+
+        .puzzle-preview-header h1 {
+            font-size: 22px;
+        }
+
+        .puzzle-meta {
+            gap: 10px;
+        }
+
+        .meta-item {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .word-search-cell {
+            width: 35px;
+            height: 35px;
+            font-size: 16px;
+        }
+
+        .puzzle-info-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .preview-actions {
+            flex-direction: column;
+            gap: 20px;
+            align-items: stretch;
+        }
+
+        .btn-group {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .word-search-cell {
+            width: 30px;
+            height: 30px;
+            font-size: 14px;
+        }
+
+        .word-list {
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        }
+
+        .puzzle-content {
+            padding: 20px;
+        }
+        
+        .answer-sequence {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="puzzle-preview-container">
+    <div class="puzzle-preview-header">
+        <h1>
+            <i class="fas fa-puzzle-piece"></i>
+            Puzzle Preview
+            <span class="puzzle-type-badge" style="background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 20px; font-size: 14px;">
+                {{ puzzle.puzzle_type_name|replace('_', ' ')|title }}
+            </span>
+        </h1>
+        
+        <div class="puzzle-meta">
+            <div class="meta-item">
+                <i class="fas fa-file-alt"></i>
+                Page {{ puzzle.page_number }}
+            </div>
+            <div class="meta-item">
+                <i class="fas fa-tachometer-alt"></i>
+                {{ puzzle.difficulty|title }}
+            </div>
+            <div class="meta-item">
+                <i class="fas fa-clock"></i>
+                {{ puzzle.time_limit }} seconds
+            </div>
+            <div class="meta-item">
+                <i class="fas fa-percentage"></i>
+                {{ puzzle.required_score }}% to pass
+            </div>
+        </div>
+    </div>
+    
+    <div class="puzzle-content">
+        <div class="puzzle-info-card">
+            <h3><i class="fas fa-info-circle"></i> Puzzle Information</h3>
+            <div class="puzzle-info-grid">
+                <div class="info-item">
+                    <span class="info-label">Puzzle Type</span>
+                    <span class="info-value">{{ puzzle.puzzle_type_name|replace('_', ' ')|title }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Difficulty Level</span>
+                    <span class="info-value">{{ puzzle.difficulty|title }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Time Limit</span>
+                    <span class="info-value">{{ puzzle.time_limit }} seconds</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Required Score</span>
+                    <span class="info-value">{{ puzzle.required_score }}%</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="puzzle-preview-area">
+            <h2 class="puzzle-title">
+                <i class="fas fa-eye"></i>
+                Puzzle Preview
+            </h2>
+            
+            <!-- Puzzle Type Specific Preview -->
+            {% if puzzle.puzzle_type_name == 'word_search' %}
+                <div class="word-search-preview">
+                    <h3>Word Search Challenge</h3>
+                    <p>Find the hidden words in the grid below:</p>
+                    
+                    {% if puzzle.puzzle_data and puzzle.puzzle_data.words %}
+                        <!-- Generate word search grid -->
+                        <div class="word-search-grid" id="word-search-grid" style="grid-template-columns: repeat(10, 1fr);">
+                            <!-- Grid cells will be generated by JavaScript -->
+                        </div>
+                        
+                        <div class="word-list-container">
+                            <div class="word-list-title">Words to Find:</div>
+                            <div class="word-list">
+                                {% for word in puzzle.puzzle_data.words %}
+                                <div class="word-item">{{ word|upper }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info mt-3">
+                            <i class="fas fa-lightbulb"></i> 
+                            Words are placed in straight lines (horizontal, vertical, or diagonal). 
+                            Word positions are highlighted in green for preview.
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            Word search puzzle will be generated automatically based on page content.
+                        </div>
+                    {% endif %}
+                </div>
+                
+            {% elif puzzle.puzzle_type_name == 'multiple_choice' %}
+                <div class="mcq-preview">
+                    <h3>Multiple Choice Questions</h3>
+                    <p>Choose the correct answer for each question:</p>
+                    
+                    {% if puzzle.puzzle_data and puzzle.puzzle_data.questions %}
+                        {% for question in puzzle.puzzle_data.questions %}
+                        <div class="mcq-question">
+                            <div class="question-number">{{ loop.index }}</div>
+                            <div class="question-text">{{ question.question }}</div>
+                            
+                            <div class="mcq-options">
+                                {% for option in question.options %}
+                                <div class="mcq-option {% if option == question.correct_answer %}correct{% endif %}" data-index="{{ loop.index }}">
+                                    <div class="option-letter">{{ ['A', 'B', 'C', 'D'][loop.index0] if loop.index0 < 4 else loop.index }}</div>
+                                    <span>{{ option }}</span>
+                                    {% if option == question.correct_answer %}
+                                    <i class="fas fa-check-circle ml-auto text-success"></i>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            Multiple choice questions will be generated automatically based on page content.
+                        </div>
+                    {% endif %}
+                </div>
+                
+            {% elif puzzle.puzzle_type_name == 'true_false' %}
+                <div class="true-false-preview">
+                    <h3>True/False Statements</h3>
+                    <p>Determine if each statement is True or False:</p>
+                    
+                    {% if puzzle.puzzle_data and puzzle.puzzle_data.statements %}
+                        {% for statement in puzzle.puzzle_data.statements %}
+                        <div class="tf-statement">
+                            <div class="statement-text">{{ statement.statement }}</div>
+                            <div class="tf-answer {% if statement.answer %}true{% else %}false{% endif %}">
+                                <i class="fas fa-{% if statement.answer %}check{% else %}times{% endif %}"></i>
+                                {{ 'True' if statement.answer else 'False' }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            True/False statements will be generated automatically based on page content.
+                        </div>
+                    {% endif %}
+                </div>
+                
+            {% elif puzzle.puzzle_type_name == 'fill_blank' %}
+                <div class="fill-blank-preview">
+                    <h3>Fill in the Blanks</h3>
+                    <p>Fill in the missing words in the sentences below:</p>
+                    
+                    {% if puzzle.puzzle_data and puzzle.puzzle_data.blanks %}
+                        {% for blank in puzzle.puzzle_data.blanks %}
+                        <div class="blank-sentence">
+                            <div class="sentence-text">
+                                {% set parts = blank.sentence.split('_____') %}
+                                {% for i in range(parts|length) %}
+                                    {{ parts[i] }}
+                                    {% if i < parts|length - 1 %}
+                                        <span class="blank-word">_____</span>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            
+                            <!-- FIXED: Show all answers with sequence numbers -->
+                            {% if blank.answers %}
+                            <div class="answer-sequence-container">
+                                <div class="answer-sequence-title">
+                                    <i class="fas fa-list-ol"></i>
+                                    Correct Answers (in order):
+                                </div>
+                                <div class="answer-sequence">
+                                    {% for answer in blank.answers %}
+                                    <div class="sequence-item">
+                                        <span class="sequence-number">{{ loop.index }}</span>
+                                        <span class="correct-answer">{{ answer }}</span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="answer-sequence-container">
+                                <div class="answer-sequence-title">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    No answers provided for this blank.
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            Fill in the blanks will be generated automatically based on page content.
+                        </div>
+                    {% endif %}
+                </div>
+                
+            {% else %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Unknown puzzle type: {{ puzzle.puzzle_type_name }}
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="preview-actions">
+            <div class="page-info">
+                <i class="fas fa-file-alt"></i>
+                This puzzle is for Page {{ puzzle.page_number }}
+            </div>
+            
+            <div class="btn-group">
+                <a href="{{ url_for('view_story_details', story_id=puzzle.story_id) if puzzle.story_id else url_for('teacher_stories') }}" class="btn btn-outline">
+                    <i class="fas fa-arrow-left"></i> Back to Story
+                </a>
+                <button onclick="window.close()" class="btn btn-primary">
+                    <i class="fas fa-times"></i> Close Preview
+                </button>
+                {% if puzzle.id %}
+                <a href="{{ url_for('view_story_details', story_id=puzzle.story_id) if puzzle.story_id else '#' }}" class="btn btn-success">
+                    <i class="fas fa-edit"></i> Edit Puzzle
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const puzzleType = "{{ puzzle.puzzle_type_name }}";
+    
+    if (puzzleType === 'word_search') {
+        generateWordSearchPreview();
+    }
+});
+
+// FIXED: Generate proper word search grid with words in straight lines
+function generateWordSearchPreview() {
+    const grid = document.getElementById('word-search-grid');
+    if (!grid) return;
+    
+    // Get words from the puzzle data (if available)
+    const puzzleData = {{ puzzle.puzzle_data|tojson|safe }};
+    const words = (puzzleData && puzzleData.words) ? puzzleData.words : ['EXAMPLE', 'PUZZLE', 'WORDSEARCH', 'FIND', 'WORDS'];
+    const gridSize = 10;
+    
+    // Create empty grid
+    const gridArray = Array(gridSize).fill().map(() => Array(gridSize).fill(''));
+    const wordCells = Array(gridSize).fill().map(() => Array(gridSize).fill(false));
+    
+    // Directions: horizontal, vertical, diagonal-right, diagonal-left
+    const directions = [
+        { dr: 0, dc: 1 },   // horizontal
+        { dr: 1, dc: 0 },   // vertical
+        { dr: 1, dc: 1 },   // diagonal down-right
+        { dr: 1, dc: -1 }   // diagonal down-left
+    ];
+    
+    // Place each word in the grid
+    words.forEach(word => {
+        word = word.toUpperCase().replace(/\s+/g, '');
+        let placed = false;
+        let attempts = 0;
+        
+        while (!placed && attempts < 100) {
+            const direction = directions[Math.floor(Math.random() * directions.length)];
+            const row = Math.floor(Math.random() * gridSize);
+            const col = Math.floor(Math.random() * gridSize);
+            
+            // Check if word fits in this direction
+            const endRow = row + direction.dr * (word.length - 1);
+            const endCol = col + direction.dc * (word.length - 1);
+            
+            if (endRow >= 0 && endRow < gridSize && endCol >= 0 && endCol < gridSize) {
+                let canPlace = true;
+                
+                // Check each cell
+                for (let i = 0; i < word.length; i++) {
+                    const checkRow = row + direction.dr * i;
+                    const checkCol = col + direction.dc * i;
+                    const existing = gridArray[checkRow][checkCol];
+                    
+                    if (existing !== '' && existing !== word[i]) {
+                        canPlace = false;
+                        break;
+                    }
+                }
+                
+                // Place the word
+                if (canPlace) {
+                    for (let i = 0; i < word.length; i++) {
+                        const placeRow = row + direction.dr * i;
+                        const placeCol = col + direction.dc * i;
+                        gridArray[placeRow][placeCol] = word[i];
+                        wordCells[placeRow][placeCol] = true;
+                    }
+                    placed = true;
+                }
+            }
+            attempts++;
+        }
+    });
+    
+    // Fill empty cells with random letters
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    for (let row = 0; row < gridSize; row++) {
+        for (let col = 0; col < gridSize; col++) {
+            if (gridArray[row][col] === '') {
+                gridArray[row][col] = alphabet[Math.floor(Math.random() * alphabet.length)];
+            }
+        }
+    }
+    
+    // Generate grid HTML
+    let gridHTML = '';
+    for (let row = 0; row < gridSize; row++) {
+        for (let col = 0; col < gridSize; col++) {
+            const letter = gridArray[row][col];
+            const isWordCell = wordCells[row][col];
+            const cellClass = isWordCell ? 'word-search-cell word-cell' : 'word-search-cell';
+            
+            gridHTML += `<div class="${cellClass}" data-row="${row}" data-col="${col}">${letter}</div>`;
+        }
+    }
+    
+    grid.innerHTML = gridHTML;
+}
+
+// Handle window closing with escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        if (window.opener) {
+            window.close();
+        } else {
+            window.history.back();
+        }
+    }
+});
+
+// Helper function to convert numbers to letters (1 -> A, 2 -> B, etc.)
+function numberToLetter(num) {
+    return String.fromCharCode(64 + num);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,757 @@
+{% extends "base.html" %}
+
+{% block title %}Teacher Dashboard - Comic Learning App{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/teacher.css') }}">
+<style>
+/* Floating Chat Button */
+.chat-float-btn {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.chat-float-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.3);
+}
+
+.chat-float-btn i {
+    font-size: 24px;
+}
+
+.chat-notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #ff4757;
+    color: white;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* Chat Modal */
+.chat-modal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 500px;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    z-index: 1001;
+    overflow: hidden;
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -40%);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+}
+
+.chat-modal.active {
+    display: block;
+}
+
+.chat-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+}
+
+.chat-overlay.active {
+    display: block;
+}
+
+.chat-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.chat-header h3 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.close-chat {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.3s;
+}
+
+.close-chat:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Student Selection */
+.student-select-container {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.student-select-container select {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 14px;
+    background: #f8f9fa;
+    transition: all 0.3s;
+}
+
+.student-select-container select:focus {
+    outline: none;
+    border-color: #667eea;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Chat Messages */
+.chat-messages-container {
+    height: 400px;
+    overflow-y: auto;
+    padding: 20px;
+    background: #f8f9fa;
+}
+
+.chat-message {
+    margin-bottom: 20px;
+    display: flex;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.message-content {
+    max-width: 70%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    position: relative;
+    word-wrap: break-word;
+}
+
+.message-content.student {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    margin-left: auto;
+    border-bottom-right-radius: 5px;
+}
+
+.message-content.teacher {
+    background: white;
+    color: #333;
+    border: 1px solid #e0e0e0;
+    border-bottom-left-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.message-time {
+    font-size: 11px;
+    opacity: 0.7;
+    margin-top: 5px;
+    display: block;
+}
+
+/* Chat Input */
+.chat-input-container {
+    padding: 20px;
+    border-top: 1px solid #eee;
+    background: white;
+    display: flex;
+    gap: 10px;
+}
+
+.chat-input-container input {
+    flex: 1;
+    padding: 12px 20px;
+    border: 2px solid #e0e0e0;
+    border-radius: 25px;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.chat-input-container input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.chat-input-container button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 25px;
+    padding: 0 25px;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+}
+
+.chat-input-container button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+}
+
+/* No Messages State */
+.no-messages {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666;
+}
+
+.no-messages i {
+    font-size: 48px;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+/* Typing Indicator */
+.typing-indicator {
+    display: none;
+    padding: 10px 20px;
+    font-style: italic;
+    color: #666;
+    font-size: 13px;
+}
+
+.typing-indicator.active {
+    display: block;
+}
+
+/* Scrollbar Styling */
+.chat-messages-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.chat-messages-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.chat-messages-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.chat-messages-container::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Online Status */
+.online-status {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 8px;
+    background: #4cd964;
+}
+
+.online-status.offline {
+    background: #e0e0e0;
+}
+
+/* Quick Chat Action */
+.quick-chat-action {
+    margin-top: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.quick-chat-action button {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div class="welcome-section">
+        <h1>Welcome, {{ teacher.first_name }}!</h1>
+        <div class="teacher-info">
+            <span class="info-item">
+                <i class="fas fa-chalkboard-teacher"></i> Teacher
+            </span>
+            <span class="info-item">
+                <i class="fas fa-id-card"></i> Reg No: {{ teacher.registration_number }}
+            </span>
+            <span class="info-item">
+                <i class="fas fa-envelope"></i> {{ teacher.email }}
+            </span>
+        </div>
+    </div>
+    
+    {% if teacher.profile_photo %}
+    <div class="profile-photo">
+        <img src="{{ url_for('static', filename='uploads/profiles/' + teacher.profile_photo) }}" 
+             alt="Profile Photo">
+    </div>
+    {% endif %}
+</div>
+
+<div class="stats-cards">
+    <div class="stat-card">
+        <div class="stat-icon primary">
+            <i class="fas fa-book"></i>
+        </div>
+        <div class="stat-content">
+            <h3>{{ stats.total_stories or 0 }}</h3>
+            <p>Total Stories</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon success">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="stat-content">
+            <h3>{{ stats.total_students or 0 }}</h3>
+            <p>Total Students</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon info">
+            <i class="fas fa-chalkboard"></i>
+        </div>
+        <div class="stat-content">
+            <h3>{{ stats.total_classes or 0 }}</h3>
+            <p>Classes</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon warning">
+            <i class="fas fa-chart-line"></i>
+        </div>
+        <div class="stat-content">
+            <h3>{{ (stats.avg_quiz_score or 0)|round(1) }}%</h3>
+            <p>Avg Quiz Score</p>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-book"></i> Recent Stories</h3>
+            <a href="{{ url_for('teacher_stories') }}" class="btn-link">View All</a>
+        </div>
+        
+        {% if recent_stories %}
+        <div class="card-list">
+            {% for story in recent_stories %}
+            <div class="list-item">
+                <div class="item-info">
+                    <h4>{{ story.title }}</h4>
+                    <p class="text-muted">
+                        {{ story.student_count or 0 }} students • 
+                        {{ story.quiz_attempts or 0 }} quiz attempts
+                    </p>
+                </div>
+                <a href="{{ url_for('view_story_details', story_id=story.id) }}" class="btn btn-sm btn-outline">
+                    <i class="fas fa-eye"></i> View
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>No stories created yet.</p>
+            <a href="{{ url_for('create_story') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Create First Story
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-history"></i> Recent Student Activity</h3>
+            <a href="{{ url_for('analytics') }}" class="btn-link">View Analytics</a>
+        </div>
+        
+        {% if recent_activity %}
+        <div class="card-list">
+            {% for activity in recent_activity %}
+            <div class="list-item">
+                <div class="item-info">
+                    <h4>{{ activity.first_name }} {{ activity.last_name }}</h4>
+                    <p class="text-muted">
+                        {{ activity.class_level }} • {{ activity.story_title }}
+                        {% if activity.quiz_score %}
+                        • Score: {{ activity.quiz_score|round(1) }}%
+                        {% endif %}
+                    </p>
+                    <small class="text-muted">
+                        {{ activity.completed_at.strftime('%Y-%m-%d %H:%M') }}
+                    </small>
+                </div>
+                <span class="badge badge-success">Completed</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>No recent student activity.</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-rocket"></i> Quick Actions</h3>
+        </div>
+        <div class="quick-actions">
+            <a href="{{ url_for('create_story') }}" class="quick-action">
+                <div class="action-icon primary">
+                    <i class="fas fa-plus"></i>
+                </div>
+                <div class="action-content">
+                    <h4>Create New Story</h4>
+                    <p>Create an interactive comic story</p>
+                </div>
+            </a>
+            
+            <a href="{{ url_for('view_students') }}" class="quick-action">
+                <div class="action-icon success">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="action-content">
+                    <h4>View Students</h4>
+                    <p>Manage and monitor students</p>
+                </div>
+            </a>
+            
+            <a href="{{ url_for('analytics') }}" class="quick-action">
+                <div class="action-icon info">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <div class="action-content">
+                    <h4>View Analytics</h4>
+                    <p>Track student performance</p>
+                </div>
+            </a>
+        </div>
+        
+        <!-- Quick Chat Action -->
+        <div class="quick-chat-action">
+            <button onclick="openChatModal()">
+                <i class="fas fa-comments"></i> Chat with Students
+            </button>
+            <p class="text-muted" style="margin-top: 8px; font-size: 12px;">
+                {{ chat_students|length }} students available for chat
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Chat Button -->
+<button class="chat-float-btn" onclick="openChatModal()">
+    <i class="fas fa-comment-alt"></i>
+    {% if unread_count %}
+    <span class="chat-notification-badge">{{ unread_count }}</span>
+    {% endif %}
+</button>
+
+<!-- Chat Modal -->
+<div class="chat-overlay" id="chatOverlay" onclick="closeChatModal()"></div>
+
+<div class="chat-modal" id="chatModal">
+    <div class="chat-header">
+        <h3><i class="fas fa-comments"></i> Student Chat</h3>
+        <button class="close-chat" onclick="closeChatModal()">×</button>
+    </div>
+    
+    <div class="student-select-container">
+        <select id="studentChatSelect" onchange="switchConversation()">
+            <option value="">Select a student to chat with...</option>
+            {% for c in chat_students %}
+            <!-- STEP 2: Added id to each option -->
+            <option value="{{ c.id }}" id="student-option-{{ c.id }}">
+                {{ c.first_name }} {{ c.last_name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <div class="chat-messages-container" id="teacherChatMessages">
+        <div class="no-messages" id="noMessages">
+            <i class="far fa-comment-alt"></i>
+            <p>Select a student to start chatting</p>
+        </div>
+    </div>
+    
+    <div class="typing-indicator" id="typingIndicator">
+        Student is typing...
+    </div>
+    
+    <div class="chat-input-container">
+        <input type="text" id="teacherChatInput" placeholder="Type your message here..." 
+               onkeypress="handleKeyPress(event)">
+        <button onclick="teacherSendMessage()">
+            <i class="fas fa-paper-plane"></i> Send
+        </button>
+    </div>
+</div>
+
+<script>
+let currentConversation = null;
+let unreadMessages = {};
+let refreshInterval;
+let isModalOpen = false;
+
+function openChatModal() {
+    document.getElementById('chatModal').classList.add('active');
+    document.getElementById('chatOverlay').classList.add('active');
+    isModalOpen = true;
+    
+    // Start refreshing messages when modal is open
+    clearInterval(refreshInterval);
+    refreshInterval = setInterval(() => {
+        if (currentConversation && isModalOpen) {
+            loadTeacherMessages();
+        }
+    }, 2000);
+}
+
+function closeChatModal() {
+    document.getElementById('chatModal').classList.remove('active');
+    document.getElementById('chatOverlay').classList.remove('active');
+    isModalOpen = false;
+    
+    // Clear refresh interval when modal is closed
+    clearInterval(refreshInterval);
+}
+
+function switchConversation() {
+    currentConversation = document.getElementById('studentChatSelect').value;
+    if (currentConversation) {
+        document.getElementById('noMessages').style.display = 'none';
+        loadTeacherMessages();
+        markMessagesAsRead(currentConversation);
+    } else {
+        document.getElementById('noMessages').style.display = 'block';
+        document.getElementById('teacherChatMessages').innerHTML = `
+            <div class="no-messages" id="noMessages">
+                <i class="far fa-comment-alt"></i>
+                <p>Select a student to start chatting</p>
+            </div>
+        `;
+    }
+}
+
+function loadTeacherMessages() {
+    if (!currentConversation) return;
+    
+    fetch(`/api/chat/messages/${currentConversation}`)
+        .then(res => res.json())
+        .then(data => {
+            let box = document.getElementById('teacherChatMessages');
+            
+            if (data.length === 0) {
+                box.innerHTML = `
+                    <div class="no-messages">
+                        <i class="far fa-comment-alt"></i>
+                        <p>No messages yet. Start the conversation!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            data.forEach(m => {
+                const time = new Date(m.created_at).toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+                
+                html += `
+                    <div class="chat-message">
+                        <div class="message-content ${m.sender_type}">
+                            ${m.message}
+                            <span class="message-time">${time}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            box.innerHTML = html;
+            box.scrollTop = box.scrollHeight;
+        });
+}
+
+function markMessagesAsRead(conversationId) {
+    fetch(`/api/chat/mark-read/${conversationId}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    }).then(() => {
+        // Update notification badge
+        updateNotificationBadge();
+        // Also update student highlighting
+        highlightStudentsWithUnread();
+    });
+}
+
+function teacherSendMessage() {
+    let input = document.getElementById('teacherChatInput');
+    let msg = input.value.trim();
+    
+    if (!msg || !currentConversation) return;
+    
+    // Show typing indicator
+    showTypingIndicator(true);
+    
+    fetch('/api/chat/send', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+            conversation_id: currentConversation,
+            message: msg
+        })
+    }).then(() => {
+        input.value = '';
+        loadTeacherMessages();
+        showTypingIndicator(false);
+    });
+}
+
+function handleKeyPress(e) {
+    if (e.key === 'Enter') {
+        teacherSendMessage();
+    }
+}
+
+function showTypingIndicator(show) {
+    const indicator = document.getElementById('typingIndicator');
+    indicator.classList.toggle('active', show);
+}
+
+function updateNotificationBadge() {
+    fetch('/api/chat/unread-count')
+        .then(res => res.json())
+        .then(data => {
+            const badge = document.querySelector('.chat-notification-badge');
+            if (data.count > 0) {
+                if (!badge) {
+                    const button = document.querySelector('.chat-float-btn');
+                    button.innerHTML += `<span class="chat-notification-badge">${data.count}</span>`;
+                } else {
+                    badge.textContent = data.count;
+                }
+            } else if (badge) {
+                badge.remove();
+            }
+        });
+}
+
+// STEP 3: New function to highlight students with unread messages
+function highlightStudentsWithUnread() {
+    fetch('/api/chat/teacher/unread-by-student')
+        .then(res => res.json())
+        .then(data => {
+            // Clear previous indicators
+            document.querySelectorAll('#studentChatSelect option')
+                .forEach(opt => {
+                    // Remove red indicator and unread count
+                    const originalText = opt.getAttribute('data-original') || opt.textContent.replace(/ 🔴 \(\d+\)$/, '');
+                    opt.textContent = originalText;
+                    opt.setAttribute('data-original', originalText);
+                });
+
+            // Add indicators for students with unread messages
+            data.forEach(s => {
+                const opt = document.getElementById(`student-option-${s.student_id}`);
+                if (opt) {
+                    const originalText = opt.getAttribute('data-original') || `${s.first_name} ${s.last_name}`;
+                    opt.setAttribute('data-original', originalText);
+                    opt.textContent = `${originalText} 🔴 (${s.unread_count})`;
+                }
+            });
+        });
+}
+
+// STEP 4: Call it on page load + interval
+document.addEventListener('DOMContentLoaded', function() {
+    updateNotificationBadge();
+    highlightStudentsWithUnread();   // ✅ ADDED THIS
+});
+
+// Load messages every 5 seconds when modal is not open
+setInterval(() => {
+    if (!isModalOpen) {
+        updateNotificationBadge();
+        highlightStudentsWithUnread();   // ✅ ADDED THIS
+    }
+}, 5000);
+</script>
+{% endblock %}

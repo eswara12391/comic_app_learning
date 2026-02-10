@@ -1,0 +1,48 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Virtual environment
+venv/
+env/
+.venv/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Env files
+.env
+.env.*
+
+# Python packaging
+pip-wheel-metadata/
+
+# Logs and databases
+*.log
+instance/
+database/*.db
+database/*.sqlite3
+
+# Uploads and user content
+uploads/
+uploads/*
+static/uploads/
+
+# Compiled assets
+*.pyc
+
+# Coverage
+coverage/
+.coverage

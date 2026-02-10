@@ -1,0 +1,2124 @@
+{% extends "base.html" %}
+
+{% block title %}{{ story.title }} - Details - Comic Learning App{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/teacher.css') }}">
+<style>
+    /* All your existing CSS styles remain the same */
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+    
+    .download-buttons {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    
+    .btn-success {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2);
+        text-decoration: none;
+    }
+    
+    .btn-success:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-outline-primary {
+        background: white;
+        border: 2px solid #007bff;
+        color: #007bff;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s ease;
+        text-decoration: none;
+    }
+    
+    .btn-outline-primary:hover {
+        background: #007bff;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 123, 255, 0.2);
+        text-decoration: none;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+        text-decoration: none;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-outline {
+        background: white;
+        border: 2px solid #6c757d;
+        color: #6c757d;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .btn-outline:hover {
+        background: #6c757d;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(108, 117, 125, 0.2);
+    }
+    
+    .btn i {
+        font-size: 16px;
+    }
+    
+    /* Story header styling */
+    .story-detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border: 1px solid #e0e0e0;
+    }
+    
+    .header-content {
+        flex: 1;
+    }
+    
+    .header-content h1 {
+        color: #2c3e50;
+        margin-bottom: 10px;
+        font-size: 28px;
+        font-weight: 700;
+    }
+    
+    .story-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: center;
+        margin-top: 10px;
+    }
+    
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        color: #6c757d;
+        font-size: 14px;
+    }
+    
+    .meta-item i {
+        color: #007bff;
+    }
+    
+    .badge {
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .badge-success {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+    }
+    
+    .badge-warning {
+        background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+        color: white;
+    }
+    
+    /* Story cover image */
+    .story-cover {
+        margin: 20px 0;
+        text-align: center;
+    }
+    
+    .story-cover img {
+        max-width: 100%;
+        max-height: 400px;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        object-fit: contain;
+    }
+    
+    /* Story description */
+    .story-description {
+        background: white;
+        padding: 25px;
+        border-radius: 10px;
+        margin: 20px 0;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        border: 1px solid #e0e0e0;
+    }
+    
+    .story-description h3 {
+        color: #2c3e50;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 20px;
+    }
+    
+    .story-description p {
+        color: #495057;
+        line-height: 1.6;
+        font-size: 16px;
+        margin: 0;
+    }
+    
+    /* Tabs styling */
+    .tabs {
+        background: white;
+        border-radius: 10px;
+        margin-top: 30px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border: 1px solid #e0e0e0;
+        overflow: hidden;
+    }
+    
+    .tab-headers {
+        display: flex;
+        background: #f8f9fa;
+        border-bottom: 2px solid #e0e0e0;
+        padding: 0 20px;
+    }
+    
+    .tab-header {
+        padding: 15px 20px;
+        background: none;
+        border: none;
+        border-bottom: 3px solid transparent;
+        font-size: 16px;
+        font-weight: 600;
+        color: #6c757d;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .tab-header:hover {
+        color: #007bff;
+        background: rgba(0, 123, 255, 0.05);
+    }
+    
+    .tab-header.active {
+        color: #007bff;
+        border-bottom-color: #007bff;
+        background: white;
+    }
+    
+    .tab-content {
+        display: none;
+        padding: 25px;
+    }
+    
+    .tab-content.active {
+        display: block;
+    }
+    
+    /* Pages grid */
+    .pages-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+    }
+    
+    .page-preview {
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border: 1px solid #e0e0e0;
+    }
+    
+    .page-preview:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+    }
+    
+    .page-number {
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        color: white;
+        padding: 12px 20px;
+        font-weight: 600;
+        font-size: 14px;
+    }
+    
+    .page-image {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .page-image.placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8f9fa;
+        color: #adb5bd;
+        font-size: 48px;
+        height: 200px;
+    }
+    
+    .page-info {
+        padding: 15px;
+    }
+    
+    .page-text {
+        color: #495057;
+        line-height: 1.5;
+        margin-bottom: 10px;
+        font-size: 14px;
+    }
+    
+    .page-notes {
+        color: #e74c3c;
+        font-size: 13px;
+        font-style: italic;
+        margin-bottom: 5px;
+        padding-left: 10px;
+        border-left: 3px solid #e74c3c;
+    }
+    
+    /* Empty state */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        margin: 20px 0;
+    }
+    
+    .empty-state i {
+        font-size: 60px;
+        color: #adb5bd;
+        margin-bottom: 20px;
+    }
+    
+    .empty-state h4 {
+        color: #6c757d;
+        margin-bottom: 15px;
+        font-size: 20px;
+    }
+    
+    .empty-state p {
+        color: #6c757d;
+        font-size: 16px;
+        margin-bottom: 20px;
+    }
+    
+    /* Table styling */
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+    }
+    
+    .data-table th {
+        background: linear-gradient(135deg, #4a6fa5 0%, #3a5980 100%);
+        color: white;
+        font-weight: 600;
+        padding: 15px;
+        text-align: left;
+        border: none;
+    }
+    
+    .data-table td {
+        padding: 15px;
+        border-bottom: 1px solid #e0e0e0;
+        vertical-align: middle;
+    }
+    
+    .data-table tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .badge-info {
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+    }
+    
+    /* Progress bar */
+    .progress-bar.small {
+        height: 8px;
+        background: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #007bff 0%, #0056b3 100%);
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+    
+    /* Quiz styling */
+    .quiz-info .card {
+        border: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border-radius: 10px;
+    }
+    
+    .quiz-stats .stat-box {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+    
+    .question-item {
+        border-left: 4px solid #007bff;
+        border-radius: 8px;
+    }
+    
+    .question-item .card-body {
+        padding: 20px;
+    }
+    
+    .option.correct-option {
+        color: #28a745;
+        font-weight: 600;
+    }
+    
+    /* Classes styling */
+    .classes-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 15px;
+        margin-top: 15px;
+    }
+    
+    .class-badge {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        border: 2px solid #2196f3;
+        border-radius: 8px;
+        padding: 12px 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #1565c0;
+        font-weight: 600;
+    }
+    
+    /* Puzzle Management Styles */
+    .puzzle-management {
+        margin-top: 20px;
+        background: white;
+        border-radius: 10px;
+        padding: 25px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        border: 1px solid #e0e0e0;
+    }
+    
+    .puzzle-list {
+        margin-top: 20px;
+    }
+    
+    .puzzle-item {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 15px;
+        background: #f8f9fa;
+        transition: all 0.3s ease;
+    }
+    
+    .puzzle-item:hover {
+        background: white;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    
+    .puzzle-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .puzzle-type-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .badge-word_search { background: #007bff; color: white; }
+    .badge-multiple_choice { background: #28a745; color: white; }
+    .badge-true_false { background: #ffc107; color: #212529; }
+    .badge-fill_blank { background: #17a2b8; color: white; }
+    
+    .puzzle-details {
+        margin-top: 10px;
+    }
+    
+    .puzzle-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+    }
+    
+    .create-puzzle-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 20px;
+        background: linear-gradient(135deg, #6f42c1 0%, #8a63d2 100%);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .create-puzzle-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(111, 66, 193, 0.3);
+    }
+    
+    .empty-puzzles {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
+    }
+    
+    .empty-puzzles i {
+        font-size: 60px;
+        margin-bottom: 20px;
+        color: #adb5bd;
+    }
+    
+    /* Modal styling */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+    
+    .modal-content {
+        background: white;
+        border-radius: 10px;
+        width: 100%;
+        max-width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        animation: modalSlideIn 0.3s ease;
+    }
+    
+    @keyframes modalSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .modal-header {
+        padding: 20px 25px;
+        background: linear-gradient(135deg, #4a6fa5 0%, #3a5980 100%);
+        color: white;
+        border-radius: 10px 10px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .modal-header h3 {
+        margin: 0;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 20px;
+    }
+    
+    .modal-header .close {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 28px;
+        cursor: pointer;
+        opacity: 0.8;
+        transition: opacity 0.2s;
+        line-height: 1;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+    }
+    
+    .modal-header .close:hover {
+        opacity: 1;
+        background: rgba(255,255,255,0.1);
+    }
+    
+    .modal-body {
+        padding: 25px;
+    }
+    
+    .modal-footer {
+        padding: 20px 25px;
+        border-top: 1px solid #e0e0e0;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+    
+    /* Edit Form Styling */
+    .form-section {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    
+    .form-section h2 {
+        color: #2c3e50;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e0e0e0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 10px 15px;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: border-color 0.3s;
+    }
+    
+    .form-control:focus {
+        border-color: #007bff;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+    }
+    
+    .form-check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 10px 0;
+    }
+    
+    .form-check-input {
+        margin: 0;
+    }
+    
+    .form-text {
+        display: block;
+        margin-top: 5px;
+        color: #6c757d;
+        font-size: 12px;
+    }
+    
+    .form-row {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .form-row .form-group {
+        flex: 1;
+        margin-bottom: 0;
+    }
+    
+    /* Image upload styling */
+    .image-upload {
+        position: relative;
+        border: 2px dashed #ced4da;
+        border-radius: 6px;
+        padding: 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color 0.3s;
+    }
+    
+    .image-upload:hover {
+        border-color: #007bff;
+    }
+    
+    .image-upload input[type="file"] {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
+    
+    .upload-preview {
+        min-height: 100px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #6c757d;
+    }
+    
+    .upload-preview img {
+        max-width: 100%;
+        max-height: 200px;
+        border-radius: 4px;
+    }
+    
+    .current-image {
+        margin-bottom: 10px;
+    }
+    
+    .current-image img {
+        max-width: 100%;
+        max-height: 200px;
+        border-radius: 6px;
+        border: 2px solid #e0e0e0;
+    }
+    
+    /* Page item styling for edit modal */
+    .edit-page-item {
+        background: #f8f9fa;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .edit-page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .edit-page-header h4 {
+        margin: 0;
+        color: #2c3e50;
+    }
+    
+    .page-actions {
+        display: flex;
+        gap: 10px;
+    }
+    
+    /* Classes grid in modal */
+    .classes-grid-modal {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 10px;
+        margin-top: 10px;
+    }
+    
+    .class-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .class-checkbox:hover {
+        border-color: #007bff;
+        background: #f8f9fa;
+    }
+    
+    .class-checkbox input[type="checkbox"] {
+        margin: 0;
+    }
+    
+    /* Alert messages */
+    #messages-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1050;
+        max-width: 400px;
+    }
+    
+    .alert {
+        padding: 15px 20px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        animation: slideInRight 0.3s ease;
+        border: none;
+    }
+    
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    .alert-success {
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        color: #155724;
+        border-left: 4px solid #28a745;
+    }
+    
+    .alert-danger {
+        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        color: #721c24;
+        border-left: 4px solid #dc3545;
+    }
+    
+    .alert .close {
+        background: none;
+        border: none;
+        color: inherit;
+        opacity: 0.7;
+        font-size: 20px;
+        cursor: pointer;
+        padding: 0;
+        margin-left: auto;
+        transition: opacity 0.2s;
+    }
+    
+    .alert .close:hover {
+        opacity: 1;
+    }
+    
+    /* Responsive design */
+    @media (max-width: 992px) {
+        .story-detail-header {
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .header-actions {
+            width: 100%;
+            justify-content: flex-start;
+        }
+        
+        .pages-grid {
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        }
+        
+        .modal-content {
+            max-width: 95%;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .header-actions {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .download-buttons {
+            flex-direction: column;
+            width: 100%;
+        }
+        
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .pages-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .tab-headers {
+            flex-wrap: wrap;
+        }
+        
+        .tab-header {
+            flex: 1;
+            min-width: 120px;
+            justify-content: center;
+        }
+        
+        .data-table {
+            display: block;
+            overflow-x: auto;
+        }
+        
+        .puzzle-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .puzzle-actions {
+            flex-wrap: wrap;
+        }
+        
+        .form-row {
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .edit-page-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .page-actions {
+            width: 100%;
+            justify-content: flex-start;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .story-detail-header {
+            padding: 15px;
+        }
+        
+        .header-content h1 {
+            font-size: 24px;
+        }
+        
+        .story-meta {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        
+        .modal-content {
+            margin: 10px;
+            width: calc(100% - 20px);
+            max-width: calc(100% - 20px);
+        }
+        
+        .modal-body {
+            padding: 15px;
+        }
+        
+        .form-section {
+            padding: 15px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="story-detail-container">
+    <!-- Story Header -->
+    <div class="story-detail-header">
+        <div class="header-content">
+            <h1>{{ story.title }}</h1>
+            <div class="story-meta">
+                <span class="meta-item">
+                    <i class="fas fa-user"></i> {{ story.first_name }} {{ story.last_name }}
+                </span>
+                <span class="meta-item">
+                    <i class="fas fa-calendar"></i> {{ story.created_at.strftime('%Y-%m-%d') }}
+                </span>
+                <span class="meta-item">
+                    <i class="fas fa-file"></i> {{ pages|length }} pages
+                </span>
+                {% if story.is_published %}
+                <span class="badge badge-success">Published</span>
+                {% else %}
+                <span class="badge badge-warning">Draft</span>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="header-actions">
+            <!-- Simple download buttons -->
+            <div class="download-buttons">
+                <a href="{{ url_for('download_story_pdf', story_id=story.id) }}" class="btn btn-success" 
+                   title="Download PDF">
+                    <i class="fas fa-file-pdf"></i> Download PDF
+                </a>
+                <a href="{{ url_for('preview_story_pdf', story_id=story.id) }}" class="btn btn-outline-primary" 
+                   target="_blank" title="Preview PDF">
+                    <i class="fas fa-eye"></i> Preview
+                </a>
+            </div>
+            
+            <a href="{{ url_for('create_quiz', story_id=story.id) }}" class="btn btn-primary">
+                <i class="fas fa-question-circle"></i> {% if quiz %}Edit Quiz{% else %}Create Quiz{% endif %}
+            </a>
+            <button type="button" class="btn btn-outline" onclick="openEditModal()">
+                <i class="fas fa-edit"></i> Edit Story
+            </button>
+        </div>
+    </div>
+    
+    <!-- Story Cover Image -->
+    {% if story.cover_image and story.cover_image != 'default_story_image.jpg' %}
+    <div class="story-cover">
+        <img src="{{ url_for('static', filename='uploads/stories/' + story.cover_image) }}" 
+             alt="{{ story.title }}" class="img-fluid" 
+             onerror="this.src='{{ url_for('static', filename='images/default-story-image.png') }}'; this.onerror=null;">
+    </div>
+    {% endif %}
+    
+    <!-- Story Description -->
+    <div class="story-description">
+        <h3><i class="fas fa-info-circle"></i> Description</h3>
+        <p>{{ story.description or 'No description provided.' }}</p>
+    </div>
+    
+    <!-- Tabs Navigation -->
+    <div class="tabs">
+        <div class="tab-headers">
+            <button class="tab-header active" data-tab="pages">
+                <i class="fas fa-file-image"></i> Pages ({{ pages|length }})
+            </button>
+            <button class="tab-header" data-tab="progress">
+                <i class="fas fa-chart-line"></i> Student Progress
+            </button>
+            <button class="tab-header" data-tab="quiz">
+                <i class="fas fa-question-circle"></i> {% if quiz %}Quiz{% else %}No Quiz{% endif %}
+            </button>
+            <button class="tab-header" data-tab="puzzles">
+                <i class="fas fa-puzzle-piece"></i> Page Puzzles
+            </button>
+            <button class="tab-header" data-tab="classes">
+                <i class="fas fa-users"></i> Assigned Classes
+            </button>
+        </div>
+        
+        <!-- Pages Tab Content -->
+        <div class="tab-content active" id="pages-tab">
+            {% if pages %}
+            <div class="pages-grid">
+                {% for page in pages %}
+                <div class="page-preview">
+                    <div class="page-number">Page {{ page.page_number }}</div>
+                    {% if page.image_url and page.image_url != 'default_page_image.jpg' %}
+                    <img src="{{ url_for('static', filename='uploads/story_pages/' + page.image_url) }}" 
+                         alt="Page {{ page.page_number }}" class="page-image"
+                         onerror="this.src='{{ url_for('static', filename='images/default-story-image.png') }}'; this.onerror=null;">
+                    {% else %}
+                    <div class="page-image placeholder">
+                        <i class="fas fa-image"></i>
+                    </div>
+                    {% endif %}
+                    <div class="page-info">
+                        <p class="page-text">{{ page.text_content[:150] }}{% if page.text_content|length > 150 %}...{% endif %}</p>
+                        {% if page.important_notes %}
+                        <p class="page-notes">{{ page.important_notes[:80] }}{% if page.important_notes|length > 80 %}...{% endif %}</p>
+                        {% endif %}
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-puzzle-piece"></i> 
+                                {% if page.has_puzzle %}Has Puzzle{% else %}No Puzzle{% endif %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-file-image fa-3x"></i>
+                <h4>No Pages Added</h4>
+                <p>This story doesn't have any pages yet.</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Student Progress Tab Content -->
+        <div class="tab-content" id="progress-tab">
+            {% if student_progress %}
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Class</th>
+                            <th>Roll No</th>
+                            <th>Progress</th>
+                            <th>Status</th>
+                            <th>Started</th>
+                            <th>Completed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for progress in student_progress %}
+                        <tr>
+                            <td><strong>{{ progress.first_name }} {{ progress.last_name }}</strong></td>
+                            <td><span class="badge badge-info">{{ progress.class_level }}</span></td>
+                            <td>{{ progress.roll_number }}</td>
+                            <td>
+                                <div class="progress-bar small">
+                                    <div class="progress-fill" style="width: {{ (progress.current_page / progress.total_pages * 100)|round(1) }}%"></div>
+                                </div>
+                                <small>{{ progress.current_page }}/{{ progress.total_pages }} pages ({{ (progress.current_page / progress.total_pages * 100)|round(1) }}%)</small>
+                            </td>
+                            <td>
+                                {% if progress.is_completed %}
+                                <span class="badge badge-success"><i class="fas fa-check-circle"></i> Completed</span>
+                                {% else %}
+                                <span class="badge badge-warning"><i class="fas fa-spinner"></i> In Progress</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ progress.started_at.strftime('%Y-%m-%d') }}</td>
+                            <td>
+                                {% if progress.completed_at %}
+                                <span class="text-success">{{ progress.completed_at.strftime('%Y-%m-%d') }}</span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-3">
+                <small class="text-muted">
+                    <i class="fas fa-info-circle"></i> Showing {{ student_progress|length }} student(s)
+                </small>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-user-graduate fa-3x"></i>
+                <h4>No Student Progress</h4>
+                <p>No students have started reading this story yet.</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Quiz Tab Content -->
+        <div class="tab-content" id="quiz-tab">
+            {% if quiz %}
+            <div class="quiz-info">
+                <div class="card">
+                    <div class="card-body">
+                        <h3 class="card-title">{{ quiz.title }}</h3>
+                        <p class="card-text">{{ quiz.description or 'No description provided.' }}</p>
+                        
+                        <div class="quiz-stats mt-4">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <div class="stat-box">
+                                        <i class="fas fa-clock text-primary fa-2x"></i>
+                                        <div>
+                                            <h5>Time Limit</h5>
+                                            <p class="mb-0">{{ quiz.time_limit // 60 }} minutes</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="stat-box">
+                                        <i class="fas fa-percentage text-success fa-2x"></i>
+                                        <div>
+                                            <h5>Passing Score</h5>
+                                            <p class="mb-0">{{ quiz.passing_score }}%</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="quiz-actions mt-4">
+                            <a href="{{ url_for('create_quiz', story_id=story.id) }}" class="btn btn-primary">
+                                <i class="fas fa-edit"></i> Edit Quiz
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if questions %}
+                <div class="quiz-questions mt-4">
+                    <h4><i class="fas fa-question"></i> Questions ({{ questions|length }})</h4>
+                    <div class="questions-list">
+                        {% for question in questions %}
+                        <div class="question-item card mt-3">
+                            <div class="card-body">
+                                <h5>Question {{ loop.index }}: {{ question.question_type|upper }} ({{ question.points }} point(s))</h5>
+                                <p class="mb-3">{{ question.question_text }}</p>
+                                
+                                {% if question.question_type == 'mcq' %}
+                                <div class="options">
+                                    {% if question.option_a %}
+                                    <div class="option">
+                                        <strong>A.</strong> {{ question.option_a }}
+                                    </div>
+                                    {% endif %}
+                                    {% if question.option_b %}
+                                    <div class="option">
+                                        <strong>B.</strong> {{ question.option_b }}
+                                    </div>
+                                    {% endif %}
+                                    {% if question.option_c %}
+                                    <div class="option">
+                                        <strong>C.</strong> {{ question.option_c }}
+                                    </div>
+                                    {% endif %}
+                                    {% if question.option_d %}
+                                    <div class="option">
+                                        <strong>D.</strong> {{ question.option_d }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% elif question.question_type == 'true_false' %}
+                                <div class="options">
+                                    <div class="option">
+                                        <strong>True</strong>
+                                    </div>
+                                    <div class="option">
+                                        <strong>False</strong>
+                                    </div>
+                                </div>
+                                {% elif question.question_type == 'short_answer' %}
+                                <div class="answer-field">
+                                    <strong>Answer:</strong> [Student's written answer]
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-question-circle fa-3x"></i>
+                <h4>No Quiz Created</h4>
+                <p>This story doesn't have a quiz yet. Create one to assess student understanding.</p>
+                <a href="{{ url_for('create_quiz', story_id=story.id) }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Create Quiz
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Puzzles Tab Content -->
+        <div class="tab-content" id="puzzles-tab">
+            <div class="puzzle-management">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3><i class="fas fa-puzzle-piece"></i> Page Puzzles</h3>
+                    <button type="button" class="create-puzzle-btn" onclick="openCreatePuzzleModal()">
+                        <i class="fas fa-plus"></i> Create Puzzle for Page
+                    </button>
+                </div>
+                
+                <p class="text-muted mb-4">
+                    Puzzles are automatically generated for each page based on text content. 
+                    Students must complete each puzzle before moving to the next page.
+                </p>
+                
+                <div class="puzzle-list">
+                    {% for page in pages %}
+                        {% set puzzle = puzzles_by_page.get(page.id) if puzzles_by_page else none %}
+                        <div class="puzzle-item">
+                            <div class="puzzle-header">
+                                <div>
+                                    <h5 class="mb-1">Page {{ page.page_number }}</h5>
+                                    <p class="text-muted mb-0">{{ page.text_content[:100] }}{% if page.text_content|length > 100 %}...{% endif %}</p>
+                                </div>
+                                {% if puzzle %}
+                                    <span class="puzzle-type-badge badge-{{ puzzle.puzzle_type_name|replace(' ', '_')|lower }}">
+                                        {{ puzzle.puzzle_type_name|replace('_', ' ')|title }}
+                                    </span>
+                                {% else %}
+                                    <span class="badge badge-secondary">No Puzzle</span>
+                                {% endif %}
+                            </div>
+                            
+                            {% if puzzle %}
+                            <div class="puzzle-details">
+                                <p><strong>Difficulty:</strong> {{ puzzle.difficulty|title }}</p>
+                                <p><strong>Time Limit:</strong> {{ puzzle.time_limit }} seconds</p>
+                                <p><strong>Required Score:</strong> {{ puzzle.required_score }}%</p>
+                                
+                                {% if puzzle.puzzle_data %}
+                                    {% set puzzle_data = puzzle.puzzle_data %}
+                                    {% if puzzle.puzzle_type_name == 'word_search' %}
+                                        <p><strong>Words:</strong> 
+                                            {% if puzzle_data.words %}
+                                                {{ puzzle_data.words|join(', ') }}
+                                            {% else %}
+                                                Words from story content
+                                            {% endif %}
+                                        </p>
+                                    {% elif puzzle.puzzle_type_name == 'multiple_choice' %}
+                                        <p><strong>Questions:</strong> {{ puzzle_data.questions|length if puzzle_data.questions else 0 }}</p>
+                                    {% elif puzzle.puzzle_type_name == 'true_false' %}
+                                        <p><strong>Statements:</strong> {{ puzzle_data.statements|length if puzzle_data.statements else 0 }}</p>
+                                    {% elif puzzle.puzzle_type_name == 'fill_blank' %}
+                                        <p><strong>Blanks:</strong> {{ puzzle_data.blanks|length if puzzle_data.blanks else 0 }}</p>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                            
+                            <div class="puzzle-actions">
+                                <button type="button" class="btn btn-sm btn-primary" onclick="editPuzzle({{ puzzle.id }})">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                                <button type="button" class="btn btn-sm btn-danger" onclick="deletePuzzle({{ puzzle.id }})">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                                <button type="button" class="btn btn-sm btn-info" onclick="previewPuzzle({{ puzzle.id }})">
+                                    <i class="fas fa-eye"></i> Preview
+                                </button>
+                            </div>
+                            {% else %}
+                            <div class="empty-puzzles">
+                                <p class="mb-0">No puzzle created for this page yet.</p>
+                                <button type="button" class="btn btn-sm btn-outline-primary mt-2" 
+                                        onclick="createPuzzleForPage({{ page.id }})">
+                                    <i class="fas fa-magic"></i> Auto-generate Puzzle
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Classes Tab Content -->
+        <div class="tab-content" id="classes-tab">
+            {% if assigned_classes %}
+            <div class="classes-list">
+                <h3>Assigned Classes</h3>
+                <p class="text-muted">This story is assigned to the following classes:</p>
+                
+                <div class="classes-grid">
+                    {% for class_level in assigned_classes %}
+                    <div class="class-badge">
+                        <i class="fas fa-graduation-cap"></i>
+                        <span>{{ class_level }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-users fa-3x"></i>
+                <h4>No Classes Assigned</h4>
+                <p>This story is not assigned to any classes yet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- EDIT STORY MODAL - Full version with all fields -->
+<div class="modal" id="editModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-edit"></i> Edit Story: {{ story.title }}</h3>
+            <button type="button" class="close" onclick="closeEditModal()">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('edit_story', story_id=story.id) }}" enctype="multipart/form-data" id="edit-story-form">
+            <div class="modal-body">
+                <!-- Story Information Section -->
+                <div class="form-section">
+                    <h2><i class="fas fa-info-circle"></i> Story Information</h2>
+                    
+                    <div class="form-group">
+                        <label for="edit-title">Story Title *</label>
+                        <input type="text" id="edit-title" name="title" class="form-control" value="{{ story.title }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-description">Story Description</label>
+                        <textarea id="edit-description" name="description" class="form-control" rows="3">{{ story.description or '' }}</textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="edit-cover_image">Cover Image</label>
+                            {% if story.cover_image and story.cover_image != 'default_story_image.jpg' %}
+                            <div class="current-image">
+                                <p>Current Image:</p>
+                                <img src="{{ url_for('static', filename='uploads/stories/' + story.cover_image) }}" 
+                                     alt="Current cover image" 
+                                     onerror="this.src='{{ url_for('static', filename='images/default-story-image.png') }}'; this.onerror=null;">
+                            </div>
+                            {% endif %}
+                            <input type="file" id="edit-cover_image" name="cover_image" class="form-control" accept="image/*">
+                            <small class="form-text">Leave empty to keep current image. Recommended size: 800x600px. Max file size: 5MB</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="edit-is_published" name="is_published" {% if story.is_published %}checked{% endif %}>
+                                <label class="form-check-label" for="edit-is_published">
+                                    <strong>Publish Story</strong>
+                                </label>
+                            </div>
+                            <small class="form-text">If checked, story will be visible to assigned students</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Assign to Classes Section -->
+                <div class="form-section">
+                    <h2><i class="fas fa-users"></i> Assign to Classes</h2>
+                    <div class="form-group">
+                        <label>Select Classes</label>
+                        <div class="classes-grid-modal">
+                            {% for class_level in classes %}
+                            <label class="class-checkbox">
+                                <input type="checkbox" name="assigned_classes" value="{{ class_level }}" 
+                                       {% if class_level in assigned_classes %}checked{% endif %}>
+                                <span>{{ class_level }}</span>
+                            </label>
+                            {% endfor %}
+                            
+                            {% if not classes %}
+                            <p class="text-muted">No classes found. Students need to register first.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Story Pages Section -->
+                <div class="form-section">
+                    <h2><i class="fas fa-file-image"></i> Story Pages ({{ pages|length }})</h2>
+                    
+                    <div id="edit-pages-container">
+                        {% for page in pages %}
+                        <div class="edit-page-item" data-page="{{ loop.index }}">
+                            <div class="edit-page-header">
+                                <h4>Page {{ loop.index }}</h4>
+                                <div class="page-actions">
+                                    {% if loop.index > 1 %}
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="removeEditPage({{ loop.index }})">
+                                        <i class="fas fa-times"></i> Remove
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="page-content">
+                                <input type="hidden" name="page_id_{{ loop.index }}" value="{{ page.id }}">
+                                
+                                <div class="form-group">
+                                    <label>Page Image *</label>
+                                    {% if page.image_url and page.image_url != 'default_page_image.jpg' %}
+                                    <div class="current-image">
+                                        <p>Current Image:</p>
+                                        <img src="{{ url_for('static', filename='uploads/story_pages/' + page.image_url) }}" 
+                                             alt="Page {{ loop.index }} image"
+                                             onerror="this.src='{{ url_for('static', filename='images/default-story-image.png') }}'; this.onerror=null;">
+                                    </div>
+                                    {% endif %}
+                                    <div class="image-upload">
+                                        <input type="file" class="edit-page-image" accept="image/*" name="page_image_{{ loop.index }}" data-page="{{ loop.index }}">
+                                        <div class="upload-preview" id="edit-preview-{{ loop.index }}">
+                                            <i class="fas fa-cloud-upload-alt"></i>
+                                            <p>Click to upload new page image (leave empty to keep current)</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Text Content *</label>
+                                    <textarea class="edit-page-text form-control" rows="4" name="page_text_{{ loop.index }}" data-page="{{ loop.index }}" required>{{ page.text_content }}</textarea>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Important Notes</label>
+                                        <textarea class="edit-page-notes form-control" rows="2" name="page_notes_{{ loop.index }}" data-page="{{ loop.index }}">{{ page.important_notes or '' }}</textarea>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Duration (seconds)</label>
+                                        <input type="number" class="edit-page-duration form-control" name="page_duration_{{ loop.index }}" value="{{ page.duration or 10 }}" min="5" max="60" data-page="{{ loop.index }}">
+                                        <small class="form-text">Time to display this page</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <button type="button" id="edit-add-page" class="btn btn-outline" onclick="addEditPage()">
+                        <i class="fas fa-plus"></i> Add Another Page
+                    </button>
+                </div>
+                
+                <input type="hidden" name="pages_data" id="edit-pages-data">
+                <input type="hidden" name="total_pages" id="edit-total-pages" value="{{ pages|length }}">
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+                <button type="button" class="btn btn-outline" onclick="closeEditModal()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Create Puzzle Modal -->
+<div class="modal" id="createPuzzleModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-plus"></i> Create Puzzle</h3>
+            <button type="button" class="close" onclick="closeCreatePuzzleModal()">&times;</button>
+        </div>
+        <form id="createPuzzleForm" onsubmit="return createPuzzle()">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="puzzle-page">Select Page *</label>
+                    <select id="puzzle-page" class="form-control" required>
+                        <option value="">-- Select a page --</option>
+                        {% for page in pages %}
+                        <option value="{{ page.id }}">Page {{ page.page_number }}: {{ page.text_content[:50] }}{% if page.text_content|length > 50 %}...{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="puzzle-type">Puzzle Type *</label>
+                    <select id="puzzle-type" class="form-control" required onchange="togglePuzzleSettings()">
+                        <option value="">-- Select puzzle type --</option>
+                        <option value="word_search">Word Search</option>
+                        <option value="multiple_choice">Multiple Choice</option>
+                        <option value="true_false">True/False</option>
+                        <option value="fill_blank">Fill in the Blanks</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="puzzle-difficulty">Difficulty</label>
+                    <select id="puzzle-difficulty" class="form-control">
+                        <option value="easy">Easy</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="puzzle-time">Time Limit (seconds)</label>
+                    <input type="number" id="puzzle-time" class="form-control" min="30" max="600" value="180">
+                </div>
+                
+                <div class="form-group">
+                    <label for="puzzle-score">Required Score (%)</label>
+                    <input type="number" id="puzzle-score" class="form-control" min="50" max="100" value="70">
+                </div>
+                
+                <!-- Puzzle-specific settings (hidden by default) -->
+                <div id="puzzle-settings" style="display: none;">
+                    <!-- Settings will be loaded dynamically based on puzzle type -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Create Puzzle
+                </button>
+                <button type="button" class="btn btn-outline" onclick="closeCreatePuzzleModal()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Success/Error Messages -->
+<div id="messages-container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">
+                <i class="fas fa-{% if category == 'success' %}check-circle{% else %}exclamation-circle{% endif %}"></i>
+                {{ message }}
+                <button type="button" class="close" onclick="this.parentElement.remove()">
+                    <span>&times;</span>
+                </button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Edit Story Modal Variables
+let editPageCount = {{ pages|length }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab functionality
+    const tabHeaders = document.querySelectorAll('.tab-header');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    tabHeaders.forEach(header => {
+        header.addEventListener('click', function() {
+            const tabId = this.dataset.tab;
+            
+            // Remove active class from all tabs
+            tabHeaders.forEach(h => h.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            
+            // Add active class to clicked tab
+            this.classList.add('active');
+            document.getElementById(`${tabId}-tab`).classList.add('active');
+            
+            // Store active tab in localStorage
+            localStorage.setItem('activeStoryTab', tabId);
+        });
+    });
+    
+    // Restore active tab from localStorage
+    const activeTab = localStorage.getItem('activeStoryTab');
+    if (activeTab) {
+        const tabHeader = document.querySelector(`[data-tab="${activeTab}"]`);
+        const tabContent = document.getElementById(`${activeTab}-tab`);
+        if (tabHeader && tabContent) {
+            tabHeaders.forEach(h => h.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            tabHeader.classList.add('active');
+            tabContent.classList.add('active');
+        }
+    }
+    
+    // Progress bar animation
+    const progressBars = document.querySelectorAll('.progress-fill');
+    progressBars.forEach(bar => {
+        const width = bar.style.width;
+        bar.style.width = '0';
+        setTimeout(() => {
+            bar.style.width = width;
+        }, 300);
+    });
+    
+    // Auto-dismiss alerts after 5 seconds
+    const alerts = document.querySelectorAll('.alert');
+    alerts.forEach(alert => {
+        setTimeout(() => {
+            alert.style.opacity = '0';
+            setTimeout(() => {
+                if (alert.parentElement) {
+                    alert.remove();
+                }
+            }, 300);
+        }, 5000);
+    });
+    
+    // Setup edit form submission
+    const editForm = document.getElementById('edit-story-form');
+    if (editForm) {
+        editForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const pages = collectEditPagesData();
+            document.getElementById('edit-pages-data').value = JSON.stringify(pages);
+            document.getElementById('edit-total-pages').value = editPageCount;
+            
+            // Submit the form
+            this.submit();
+        });
+    }
+    
+    // Image upload preview for edit modal
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('edit-page-image')) {
+            const page = e.target.dataset.page;
+            const file = e.target.files[0];
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById(`edit-preview-${page}`);
+                    if (preview) {
+                        preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+    });
+});
+
+// Edit Modal Functions
+function openEditModal() {
+    document.getElementById('editModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function addEditPage() {
+    editPageCount++;
+    
+    const pagesContainer = document.getElementById('edit-pages-container');
+    const newPage = document.createElement('div');
+    newPage.className = 'edit-page-item';
+    newPage.dataset.page = editPageCount;
+    newPage.innerHTML = `
+        <div class="edit-page-header">
+            <h4>Page ${editPageCount} (New)</h4>
+            <div class="page-actions">
+                <button type="button" class="btn btn-danger btn-sm" onclick="removeEditPage(${editPageCount})">
+                    <i class="fas fa-times"></i> Remove
+                </button>
+            </div>
+        </div>
+        
+        <div class="page-content">
+            <input type="hidden" name="page_id_${editPageCount}" value="">
+            
+            <div class="form-group">
+                <label>Page Image *</label>
+                <div class="image-upload">
+                    <input type="file" class="edit-page-image" accept="image/*" name="page_image_${editPageCount}" data-page="${editPageCount}" required>
+                    <div class="upload-preview" id="edit-preview-${editPageCount}">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Click to upload page image</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Text Content *</label>
+                <textarea class="edit-page-text form-control" rows="4" name="page_text_${editPageCount}"
+                          placeholder="Enter text content for this page..." data-page="${editPageCount}" required></textarea>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Important Notes</label>
+                    <textarea class="edit-page-notes form-control" rows="2" name="page_notes_${editPageCount}"
+                              placeholder="Enter important notes..." data-page="${editPageCount}"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Duration (seconds)</label>
+                    <input type="number" class="edit-page-duration form-control" name="page_duration_${editPageCount}" value="10" min="5" max="60" data-page="${editPageCount}">
+                    <small class="form-text">Time to display this page</small>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    pagesContainer.appendChild(newPage);
+}
+
+function removeEditPage(pageNumber) {
+    if (editPageCount > 1) {
+        const pageElement = document.querySelector(`.edit-page-item[data-page="${pageNumber}"]`);
+        if (pageElement) {
+            // Check if this is a new page or existing page
+            const pageIdInput = pageElement.querySelector('input[name^="page_id_"]');
+            const isNewPage = !pageIdInput || !pageIdInput.value;
+            
+            if (isNewPage || confirm('Are you sure you want to remove this page? This action cannot be undone.')) {
+                pageElement.remove();
+                
+                // Renumber remaining pages
+                const pages = document.querySelectorAll('.edit-page-item');
+                pages.forEach((page, index) => {
+                    const newPageNumber = index + 1;
+                    page.dataset.page = newPageNumber;
+                    
+                    // Update header
+                    const header = page.querySelector('h4');
+                    const currentText = header.textContent;
+                    const isNew = currentText.includes('(New)');
+                    header.textContent = `Page ${newPageNumber}${isNew ? ' (New)' : ''}`;
+                    
+                    // Update remove button
+                    const removeBtn = page.querySelector('.btn-danger');
+                    if (removeBtn) {
+                        removeBtn.setAttribute('onclick', `removeEditPage(${newPageNumber})`);
+                    }
+                    
+                    // Update all inputs within this page
+                    page.querySelectorAll('[data-page]').forEach(input => {
+                        input.dataset.page = newPageNumber;
+                    });
+                    
+                    // Update input names
+                    page.querySelectorAll('input, textarea').forEach(input => {
+                        const name = input.name;
+                        if (name && name.includes('_')) {
+                            const parts = name.split('_');
+                            const lastPart = parts.pop();
+                            if (!isNaN(lastPart)) {
+                                input.name = parts.join('_') + '_' + newPageNumber;
+                            }
+                        }
+                    });
+                    
+                    // Update preview ID
+                    const preview = page.querySelector('.upload-preview');
+                    if (preview) {
+                        preview.id = `edit-preview-${newPageNumber}`;
+                    }
+                });
+                
+                editPageCount = pages.length;
+            }
+        }
+    } else {
+        alert('At least one page is required!');
+    }
+}
+
+function collectEditPagesData() {
+    const pages = [];
+    
+    for (let i = 1; i <= editPageCount; i++) {
+        const pageElement = document.querySelector(`.edit-page-item[data-page="${i}"]`);
+        if (pageElement) {
+            const pageId = pageElement.querySelector('input[name^="page_id_"]')?.value || '';
+            const text = pageElement.querySelector('.edit-page-text')?.value || '';
+            const notes = pageElement.querySelector('.edit-page-notes')?.value || '';
+            const duration = pageElement.querySelector('.edit-page-duration')?.value || '10';
+            const imageInput = pageElement.querySelector('.edit-page-image');
+            const hasNewImage = imageInput && imageInput.files && imageInput.files.length > 0;
+            
+            if (text.trim()) {
+                pages.push({
+                    page_number: i,
+                    page_id: pageId,
+                    text: text,
+                    notes: notes,
+                    duration: parseInt(duration) || 10,
+                    has_new_image: hasNewImage
+                });
+            }
+        }
+    }
+    
+    return pages;
+}
+
+// Existing puzzle modal functions (keep these as they are)
+function openCreatePuzzleModal() {
+    document.getElementById('createPuzzleModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeCreatePuzzleModal() {
+    document.getElementById('createPuzzleModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function togglePuzzleSettings() {
+    const puzzleType = document.getElementById('puzzle-type').value;
+    const settingsDiv = document.getElementById('puzzle-settings');
+    
+    if (!puzzleType) {
+        settingsDiv.style.display = 'none';
+        return;
+    }
+    
+    let settingsHTML = '';
+    
+    switch(puzzleType) {
+        case 'word_search':
+            settingsHTML = `
+                <div class="form-group">
+                    <label>Word Search Settings</label>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="grid-size">Grid Size</label>
+                            <select id="grid-size" class="form-control">
+                                <option value="8">8x8</option>
+                                <option value="10" selected>10x10</option>
+                                <option value="12">12x12</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="max-words">Maximum Words</label>
+                            <input type="number" id="max-words" class="form-control" min="3" max="15" value="8">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Allowed Directions</label>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="dir-horizontal" checked>
+                        <label class="form-check-label" for="dir-horizontal">Horizontal</label>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="dir-vertical" checked>
+                        <label class="form-check-label" for="dir-vertical">Vertical</label>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="dir-diagonal">
+                        <label class="form-check-label" for="dir-diagonal">Diagonal</label>
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'multiple_choice':
+            settingsHTML = `
+                <div class="form-group">
+                    <label>Multiple Choice Settings</label>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="mc-questions">Number of Questions</label>
+                            <input type="number" id="mc-questions" class="form-control" min="2" max="10" value="5">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="mc-options">Options per Question</label>
+                            <input type="number" id="mc-options" class="form-control" min="2" max="6" value="4">
+                        </div>
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'true_false':
+            settingsHTML = `
+                <div class="form-group">
+                    <label for="tf-statements">Number of Statements</label>
+                    <input type="number" id="tf-statements" class="form-control" min="2" max="10" value="6">
+                </div>
+            `;
+            break;
+            
+        case 'fill_blank':
+            settingsHTML = `
+                <div class="form-group">
+                    <label for="fb-blanks">Number of Blanks</label>
+                    <input type="number" id="fb-blanks" class="form-control" min="1" max="10" value="4">
+                </div>
+                <div class="form-group">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="fb-hints" checked>
+                        <label class="form-check-label" for="fb-hints">Show Hints</label>
+                    </div>
+                </div>
+            `;
+            break;
+    }
+    
+    settingsDiv.innerHTML = settingsHTML;
+    settingsDiv.style.display = 'block';
+}
+
+async function createPuzzle() {
+    const pageId = document.getElementById('puzzle-page').value;
+    const puzzleType = document.getElementById('puzzle-type').value;
+    const difficulty = document.getElementById('puzzle-difficulty').value;
+    const timeLimit = document.getElementById('puzzle-time').value;
+    const requiredScore = document.getElementById('puzzle-score').value;
+    
+    if (!pageId || !puzzleType) {
+        alert('Please select a page and puzzle type');
+        return false;
+    }
+    
+    const puzzleData = {
+        page_id: pageId,
+        puzzle_type: puzzleType,
+        difficulty: difficulty,
+        time_limit: parseInt(timeLimit),
+        required_score: parseInt(requiredScore),
+        auto_generate: true
+    };
+    
+    try {
+        const response = await fetch('/api/create_puzzle', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(puzzleData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('Puzzle created successfully!');
+            closeCreatePuzzleModal();
+            location.reload();
+        } else {
+            alert('Error creating puzzle: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error creating puzzle: ' + error.message);
+    }
+    
+    return false;
+}
+
+function createPuzzleForPage(pageId) {
+    if (confirm('Generate a puzzle for this page? The puzzle will be created automatically based on the page content.')) {
+        fetch('/api/auto_generate_puzzle', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                page_id: pageId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Puzzle generated successfully!');
+                location.reload();
+            } else {
+                alert('Error generating puzzle: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error.message);
+        });
+    }
+}
+
+function editPuzzle(puzzleId) {
+    alert('Edit puzzle functionality coming soon!');
+}
+
+function deletePuzzle(puzzleId) {
+    if (confirm('Are you sure you want to delete this puzzle?')) {
+        fetch('/api/delete_puzzle', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                puzzle_id: puzzleId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Puzzle deleted successfully!');
+                location.reload();
+            } else {
+                alert('Error deleting puzzle: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error.message);
+        });
+    }
+}
+
+function previewPuzzle(puzzleId) {
+    window.open(`/teacher/preview_puzzle/${puzzleId}`, '_blank');
+}
+
+// Close modals when clicking outside
+window.addEventListener('click', function(event) {
+    const editModal = document.getElementById('editModal');
+    const puzzleModal = document.getElementById('createPuzzleModal');
+    
+    if (event.target === editModal) {
+        closeEditModal();
+    }
+    if (event.target === puzzleModal) {
+        closeCreatePuzzleModal();
+    }
+});
+
+// Close modals with Escape key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeEditModal();
+        closeCreatePuzzleModal();
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,3792 @@
+{% extends "base.html" %}
+
+{% block title %}{{ story.title }} - Comic Learning App{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/student.css') }}">
+<style>
+    /* Existing Story Viewer Styles */
+    .story-viewer-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .story-header {
+        text-align: center;
+        margin-bottom: 30px;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        padding: 25px;
+        border-radius: var(--border-radius);
+        color: white;
+        box-shadow: var(--shadow);
+    }
+
+    .story-header h1 {
+        color: white;
+        margin-bottom: 10px;
+        font-size: 2rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .story-author {
+        color: rgba(255,255,255,0.9);
+        font-style: italic;
+        font-size: 1.1rem;
+    }
+
+    .story-controls {
+        background: var(--card-bg);
+        border-radius: var(--border-radius);
+        padding: 15px 20px;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 15px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--border-color);
+    }
+
+    .control-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-indicator {
+        font-weight: bold;
+        padding: 8px 20px;
+        background: var(--light-bg);
+        border-radius: 50px;
+        min-width: 140px;
+        text-align: center;
+        border: 2px solid var(--border-color);
+    }
+
+    .story-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        margin-bottom: 30px;
+    }
+
+    @media (max-width: 992px) {
+        .story-content {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .story-image-container {
+        background: var(--light-bg);
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        box-shadow: var(--shadow-lg);
+        height: 500px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--border-color);
+        position: relative;
+    }
+
+    .story-image {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        transition: transform 0.3s ease;
+    }
+
+    .story-image.loading {
+        opacity: 0.5;
+    }
+
+    .story-image:hover {
+        transform: scale(1.02);
+    }
+
+    .story-image-placeholder {
+        text-align: center;
+        color: var(--text-muted);
+        padding: 50px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        width: 100%;
+    }
+
+    .story-image-placeholder i {
+        font-size: 80px;
+        margin-bottom: 20px;
+        color: var(--border-color);
+    }
+
+    .story-text-container {
+        background: var(--card-bg);
+        border-radius: var(--border-radius);
+        padding: 25px;
+        box-shadow: var(--shadow-lg);
+        overflow-y: auto;
+        max-height: 500px;
+        border: 1px solid var(--border-color);
+    }
+
+    .story-text {
+        font-size: 18px;
+        line-height: 1.8;
+        margin-bottom: 25px;
+        white-space: pre-wrap;
+        text-align: justify;
+        color: var(--text-color);
+        padding: 15px;
+        background: rgba(0,0,0,0.02);
+        border-radius: 8px;
+    }
+
+    .story-notes {
+        background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+        border-left: 5px solid var(--warning-color);
+        padding: 20px;
+        border-radius: 0 var(--border-radius) var(--border-radius) 0;
+        margin-top: 25px;
+        box-shadow: var(--shadow-sm);
+        display: none;
+    }
+
+    .story-notes h4 {
+        color: var(--warning-color);
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 1.2rem;
+    }
+
+    .story-progress {
+        background: var(--card-bg);
+        border-radius: var(--border-radius);
+        padding: 25px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--border-color);
+        margin-top: 30px;
+    }
+
+    .progress-container {
+        margin-bottom: 20px;
+    }
+
+    .progress-bar {
+        height: 25px;
+        background: var(--light-bg);
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 15px;
+        border: 1px solid var(--border-color);
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        border-radius: 12px;
+        transition: width 1s ease;
+        width: 0%;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .progress-fill::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(90deg, 
+            transparent 0%, 
+            rgba(255,255,255,0.3) 50%, 
+            transparent 100%);
+        animation: shimmer 2s infinite;
+    }
+
+    @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+
+    .progress-text {
+        text-align: center;
+        font-weight: bold;
+        color: var(--text-color);
+        font-size: 1.1rem;
+    }
+
+    .completion-section {
+        text-align: center;
+        padding: 40px;
+        border-top: 3px solid var(--success-color);
+        margin-top: 20px;
+        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        border-radius: var(--border-radius);
+        display: none;
+    }
+
+    .completion-section p {
+        font-size: 1.3rem;
+        margin-bottom: 25px;
+        color: var(--success-color);
+        font-weight: bold;
+    }
+
+    .btn.active {
+        background: var(--primary-color);
+        color: white;
+        box-shadow: 0 0 0 3px var(--primary-light);
+        transform: translateY(-2px);
+    }
+
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none !important;
+    }
+
+    .btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .page-transition-prev {
+        animation: slideFromLeft 0.5s ease;
+    }
+
+    .page-transition-next {
+        animation: slideFromRight 0.5s ease;
+    }
+
+    @keyframes slideFromLeft {
+        from {
+            opacity: 0;
+            transform: translateX(-50px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes slideFromRight {
+        from {
+            opacity: 0;
+            transform: translateX(50px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .story-notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        min-width: 300px;
+        max-width: 400px;
+        animation: slideInRight 0.3s ease;
+        box-shadow: var(--shadow-lg);
+        border-radius: var(--border-radius);
+        border-left: 5px solid var(--info-color);
+        backdrop-filter: blur(10px);
+        background: rgba(255,255,255,0.95);
+    }
+
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    .speaking-indicator {
+        display: none;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 20px;
+        background: var(--primary-light);
+        border-radius: 50px;
+        color: var(--primary-color);
+        font-weight: bold;
+        animation: pulse 1.5s infinite;
+        margin: 15px 0;
+    }
+
+    @keyframes pulse {
+        0% { opacity: 0.6; }
+        50% { opacity: 1; }
+        100% { opacity: 0.6; }
+    }
+
+    .tts-controls {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-top: 15px;
+        padding: 15px;
+        background: var(--light-bg);
+        border-radius: var(--border-radius);
+        border: 1px solid var(--border-color);
+    }
+
+    /* Puzzle Status Badge */
+    .puzzle-status {
+        animation: pulse 2s infinite;
+        padding: 8px 15px;
+        background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+        border-radius: 50px;
+        color: white;
+        font-weight: bold;
+        display: none;
+    }
+
+    /* Puzzle Modal Styles */
+    .puzzle-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        z-index: 3000;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        backdrop-filter: blur(5px);
+    }
+
+    .puzzle-modal-content {
+        background: white;
+        border-radius: 15px;
+        width: 100%;
+        max-width: 800px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        animation: puzzleSlideIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        border: 3px solid var(--primary-color);
+    }
+
+    @keyframes puzzleSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-50px) scale(0.9);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    .puzzle-modal .modal-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: white;
+        border-radius: 12px 12px 0 0;
+        padding: 20px 30px;
+    }
+
+    .puzzle-modal .modal-body {
+        padding: 30px;
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+
+    .puzzle-modal .modal-footer {
+        padding: 20px 30px;
+        border-top: 2px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+    }
+
+    /* Puzzle Types Specific Styles */
+    .puzzle-container {
+        padding: 20px;
+    }
+
+    .puzzle-header {
+        margin-bottom: 25px;
+        text-align: center;
+    }
+
+    .puzzle-header h4 {
+        color: var(--primary-color);
+        font-size: 24px;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .puzzle-instructions {
+        color: var(--text-muted);
+        font-size: 16px;
+        line-height: 1.6;
+        background: var(--light-bg);
+        padding: 15px;
+        border-radius: 10px;
+        border-left: 4px solid var(--info-color);
+    }
+
+    /* Word Search Puzzle */
+    .word-search-grid {
+        display: grid;
+        gap: 2px;
+        margin: 25px auto;
+        background: var(--border-color);
+        padding: 2px;
+        border-radius: 5px;
+        max-width: 500px;
+    }
+
+    .word-search-cell {
+        aspect-ratio: 1;
+        background: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 18px;
+        cursor: pointer;
+        transition: all 0.2s;
+        user-select: none;
+    }
+
+    .word-search-cell.selected {
+        background: var(--primary-light);
+        color: white;
+    }
+
+    .word-search-cell.found {
+        background: var(--success-color);
+        color: white;
+        transform: scale(1.05);
+    }
+
+    .word-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+        margin: 20px 0;
+    }
+
+    .word-item {
+        padding: 10px 15px;
+        background: var(--light-bg);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: all 0.3s;
+    }
+
+    .word-item.found {
+        background: var(--success-light);
+        color: var(--success-color);
+        text-decoration: line-through;
+    }
+
+    /* Multiple Choice Puzzle */
+    .multiple-choice-question {
+        background: white;
+        border: 2px solid var(--border-color);
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        transition: border-color 0.3s;
+    }
+
+    .multiple-choice-question:hover {
+        border-color: var(--primary-light);
+    }
+
+    .multiple-choice-question h5 {
+        color: var(--text-color);
+        margin-bottom: 15px;
+        font-size: 18px;
+        line-height: 1.5;
+    }
+
+    .multiple-choice-options {
+        display: grid;
+        gap: 10px;
+    }
+
+    .mc-option {
+        padding: 12px 15px;
+        background: var(--light-bg);
+        border: 2px solid transparent;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .mc-option:hover {
+        background: var(--primary-light);
+        transform: translateX(5px);
+    }
+
+    .mc-option.selected {
+        background: var(--primary-light);
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+    }
+
+    .mc-option input {
+        margin: 0;
+    }
+
+    /* True/False Puzzle */
+    .true-false-question {
+        background: white;
+        border: 2px solid var(--border-color);
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 15px;
+    }
+
+    .tf-statement {
+        font-size: 16px;
+        line-height: 1.6;
+        margin-bottom: 15px;
+        color: var(--text-color);
+    }
+
+    .tf-options {
+        display: flex;
+        gap: 15px;
+    }
+
+    .tf-option {
+        flex: 1;
+        padding: 12px;
+        text-align: center;
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-weight: 600;
+    }
+
+    .tf-option.true-option:hover {
+        background: #d4edda;
+        border-color: #28a745;
+        color: #28a745;
+    }
+
+    .tf-option.false-option:hover {
+        background: #f8d7da;
+        border-color: #dc3545;
+        color: #dc3545;
+    }
+
+    .tf-option.selected.true-selected {
+        background: #28a745;
+        border-color: #28a745;
+        color: white;
+    }
+
+    .tf-option.selected.false-selected {
+        background: #dc3545;
+        border-color: #dc3545;
+        color: white;
+    }
+
+    /* Fill Blank Puzzle - UPDATED for two blanks */
+    .fill-blank-question {
+        background: white;
+        border: 2px solid var(--border-color);
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .blank-sentence {
+        font-size: 18px;
+        line-height: 1.6;
+        margin-bottom: 15px;
+        color: var(--text-color);
+    }
+
+    .blank-input-group {
+        display: flex;
+        gap: 10px;
+        margin: 15px 0;
+        flex-wrap: wrap;
+    }
+
+    .blank-input-container {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        flex: 1;
+        min-width: 150px;
+    }
+
+    .blank-input-label {
+        font-size: 14px;
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+
+    .blank-input {
+        padding: 10px 15px;
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 16px;
+        width: 100%;
+        transition: border-color 0.3s;
+    }
+
+    .blank-input:focus {
+        border-color: var(--primary-color);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+    }
+
+    /* Puzzle Results */
+    .puzzle-result-card {
+        text-align: center;
+        padding: 30px;
+    }
+
+    .result-icon {
+        font-size: 60px;
+        margin-bottom: 20px;
+    }
+
+    .result-icon.success {
+        color: var(--success-color);
+        animation: bounce 1s;
+    }
+
+    .result-icon.failure {
+        color: var(--danger-color);
+        animation: shake 0.5s;
+    }
+
+    @keyframes bounce {
+        0%, 20%, 60%, 100% {
+            transform: translateY(0);
+        }
+        40% {
+            transform: translateY(-20px);
+        }
+        80% {
+            transform: translateY(-10px);
+        }
+    }
+
+    @keyframes shake {
+        0%, 100% {transform: translateX(0);}
+        10%, 30%, 50%, 70%, 90% {transform: translateX(-5px);}
+        20%, 40%, 60%, 80% {transform: translateX(5px);}
+    }
+
+    .result-score {
+        font-size: 48px;
+        font-weight: bold;
+        margin: 20px 0;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .result-message {
+        font-size: 18px;
+        margin-bottom: 25px;
+        color: var(--text-color);
+    }
+
+    .result-details {
+        background: var(--light-bg);
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+        text-align: left;
+    }
+
+    .result-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 8px;
+        background: white;
+    }
+
+    .result-item.correct {
+        border-left: 4px solid var(--success-color);
+    }
+
+    .result-item.incorrect {
+        border-left: 4px solid var(--danger-color);
+    }
+
+    /* Timer */
+    .puzzle-timer {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 15px;
+        background: var(--light-bg);
+        border-radius: 50px;
+        margin-bottom: 20px;
+        font-weight: bold;
+        color: var(--warning-color);
+    }
+
+    .timer-warning {
+        color: var(--danger-color);
+        animation: pulse 1s infinite;
+    }
+
+    /* Progress indicator */
+    .puzzle-progress {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .progress-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--border-color);
+        transition: all 0.3s;
+    }
+
+    .progress-dot.active {
+        background: var(--primary-color);
+        transform: scale(1.3);
+    }
+
+    .progress-dot.completed {
+        background: var(--success-color);
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .puzzle-modal-content {
+            margin: 10px;
+            width: calc(100% - 20px);
+        }
+        
+        .word-search-grid {
+            max-width: 100%;
+        }
+        
+        .word-search-cell {
+            font-size: 16px;
+        }
+        
+        .tf-options {
+            flex-direction: column;
+        }
+        
+        .puzzle-modal .modal-footer {
+            flex-direction: column;
+        }
+        
+        .puzzle-modal .modal-footer .btn {
+            width: 100%;
+        }
+        
+        .blank-input-group {
+            flex-direction: column;
+        }
+    }
+
+    /* Full Screen Drawing Canvas Styles (Existing) */
+    .fullscreen-drawing {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: white;
+        z-index: 2000;
+        display: none;
+        flex-direction: column;
+    }
+
+    .fullscreen-drawing.active {
+        display: flex;
+    }
+
+    .drawing-header-bar {
+        background: var(--primary-color);
+        color: white;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        z-index: 2001;
+    }
+
+    .drawing-header-bar h3 {
+        margin: 0;
+        color: white;
+        font-size: 1.3rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .drawing-toolbar-container {
+        background: var(--card-bg);
+        border-bottom: 1px solid var(--border-color);
+        padding: 10px 15px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: center;
+        z-index: 2001;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    .toolbar-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 10px;
+        background: var(--light-bg);
+        border-radius: var(--border-radius);
+        border: 1px solid var(--border-color);
+    }
+
+    .toolbar-group h5 {
+        margin: 0;
+        font-size: 12px;
+        color: var(--text-muted);
+        font-weight: 500;
+        white-space: nowrap;
+        padding-right: 8px;
+        border-right: 1px solid var(--border-color);
+    }
+
+    .toolbar-btn {
+        width: 45px;
+        height: 45px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        border: 2px solid var(--border-color);
+        border-radius: var(--border-radius);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        color: var(--text-color);
+    }
+
+    .toolbar-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow);
+        border-color: var(--primary-color);
+    }
+
+    .toolbar-btn.active {
+        border-color: var(--primary-color);
+        background: var(--primary-light);
+        color: var(--primary-color);
+    }
+
+    .toolbar-btn i {
+        font-size: 18px;
+        margin-bottom: 2px;
+    }
+
+    .toolbar-btn span {
+        font-size: 9px;
+        font-weight: 500;
+    }
+
+    .color-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        border: 3px solid transparent;
+        transition: all 0.2s ease;
+    }
+
+    .color-btn:hover {
+        transform: scale(1.1);
+    }
+
+    .color-btn.active {
+        border-color: var(--text-color);
+        transform: scale(1.1);
+    }
+
+    .brush-size-display {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 120px;
+    }
+
+    .brush-size-label {
+        font-size: 12px;
+        color: var(--text-muted);
+        white-space: nowrap;
+    }
+
+    .brush-size-slider {
+        width: 100px;
+        height: 6px;
+        -webkit-appearance: none;
+        background: var(--border-color);
+        border-radius: 3px;
+        outline: none;
+    }
+
+    .brush-size-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: var(--primary-color);
+        cursor: pointer;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .brush-size-value {
+        font-size: 12px;
+        font-weight: bold;
+        color: var(--text-color);
+        min-width: 30px;
+        text-align: center;
+    }
+
+    .drawing-canvas-fullscreen {
+        flex: 1;
+        width: 100%;
+        height: calc(100vh - 140px);
+        position: relative;
+        background: white;
+        overflow: hidden;
+    }
+
+    #fullscreen-canvas {
+        width: 100%;
+        height: 100%;
+        cursor: crosshair;
+        background: white;
+    }
+
+    /* Color Palette Popup */
+    .color-palette-popup {
+        position: absolute;
+        top: 140px;
+        left: 20px;
+        background: white;
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-lg);
+        padding: 15px;
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 8px;
+        z-index: 2003;
+        border: 1px solid var(--border-color);
+        display: none;
+    }
+
+    .color-palette-popup.active {
+        display: grid;
+    }
+
+    .color-option {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: all 0.2s ease;
+    }
+
+    .color-option:hover {
+        transform: scale(1.1);
+    }
+
+    .color-option.active {
+        border-color: var(--text-color);
+        transform: scale(1.1);
+    }
+
+    /* Text Input Popup */
+    .text-input-popup {
+        position: absolute;
+        background: white;
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-lg);
+        padding: 20px;
+        z-index: 2003;
+        border: 1px solid var(--border-color);
+        display: none;
+        min-width: 300px;
+    }
+
+    .text-input-popup.active {
+        display: block;
+    }
+
+    .text-input-popup input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        margin-bottom: 10px;
+        font-size: 16px;
+    }
+
+    .text-input-popup .btn-group {
+        display: flex;
+        gap: 10px;
+    }
+
+    /* Toolbar Controls */
+    .toolbar-controls {
+        display: flex;
+        gap: 10px;
+    }
+
+    @media (max-width: 768px) {
+        .drawing-toolbar-container {
+            padding: 8px 10px;
+            gap: 10px;
+            overflow-x: auto;
+        }
+        
+        .toolbar-group {
+            padding: 5px;
+            gap: 5px;
+        }
+        
+        .toolbar-btn {
+            width: 40px;
+            height: 40px;
+        }
+        
+        .toolbar-btn i {
+            font-size: 16px;
+        }
+        
+        .toolbar-btn span {
+            font-size: 8px;
+        }
+        
+        .color-btn {
+            width: 35px;
+            height: 35px;
+        }
+        
+        .brush-size-display {
+            min-width: 100px;
+        }
+        
+        .brush-size-slider {
+            width: 80px;
+        }
+        
+        .color-palette-popup {
+            top: 120px;
+            left: 10px;
+        }
+        
+        .drawing-canvas-fullscreen {
+            height: calc(100vh - 120px);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="story-viewer-container" id="story-container">
+    <div class="story-header">
+        <h1>{{ story.title }}</h1>
+        <p class="story-author">
+            <i class="fas fa-user-graduate"></i> By: {{ story.teacher_first_name }} {{ story.teacher_last_name }}
+        </p>
+    </div>
+    
+    <div class="story-controls">
+        <div class="control-group">
+            <button id="prev-page" class="btn btn-outline" title="Previous Page (←)">
+                <i class="fas fa-chevron-left"></i> Previous
+            </button>
+            <span id="page-indicator" class="page-indicator">
+                Page {{ progress.current_page }} of {{ total_pages }}
+            </span>
+            <button id="next-page" class="btn btn-outline" title="Next Page (→)">
+                Next <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+        
+        <div class="control-group">
+            <button id="auto-play" class="btn btn-outline" title="Auto-play (A)">
+                <i class="fas fa-play"></i> Auto-play
+            </button>
+            <button id="play-narration" class="btn btn-outline" title="Read Aloud (R)">
+                <i class="fas fa-volume-up"></i> Read Aloud
+            </button>
+            <button id="toggle-fullscreen-drawing" class="btn btn-primary" title="Full Screen Drawing (F)">
+                <i class="fas fa-paint-brush"></i> Open Whiteboard
+            </button>
+        </div>
+        
+        <!-- Puzzle Status Indicator -->
+        <div class="control-group">
+            <div class="puzzle-status" id="puzzle-status">
+                <i class="fas fa-puzzle-piece"></i> Page Challenge Available
+            </div>
+        </div>
+    </div>
+    
+    <div id="speaking-indicator" class="speaking-indicator">
+        <i class="fas fa-microphone-alt"></i>
+        <span>Reading text aloud...</span>
+        <button id="stop-speech" class="btn btn-sm btn-danger">
+            <i class="fas fa-stop"></i> Stop
+        </button>
+    </div>
+    
+    <div class="story-content">
+        <div class="story-image-container">
+            <img id="story-image" 
+                 src="" 
+                 alt="Story Image" 
+                 class="story-image">
+            
+            <div id="image-placeholder" class="story-image-placeholder">
+                <i class="fas fa-image"></i>
+                <p>Image not available</p>
+            </div>
+        </div>
+        
+        <div class="story-text-container">
+            <div class="story-text" id="story-text">
+                <!-- Text will be loaded by JavaScript -->
+            </div>
+            
+            <div class="story-notes" id="story-notes">
+                <h4><i class="fas fa-lightbulb"></i> Important Notes</h4>
+                <p id="notes-text"></p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="story-progress">
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"
+                     style="width: {{ (progress.current_page / total_pages) * 100 }}%">
+                </div>
+            </div>
+            <div class="progress-text" id="progress-text">
+                {{ ((progress.current_page / total_pages) * 100)|round(1) }}% Complete
+            </div>
+        </div>
+        
+        <div class="completion-section" id="completion-section">
+            <p>🎉 Congratulations! You've completed this story!</p>
+            <div class="mt-3">
+                <a href="{{ url_for('take_quiz', story_id=story.id) }}" class="btn btn-success btn-lg mr-2">
+                    <i class="fas fa-question-circle"></i> Take Quiz
+                </a>
+                <a href="{{ url_for('student_dashboard') }}" class="btn btn-outline btn-lg">
+                    <i class="fas fa-home"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Puzzle Modal -->
+<div class="modal puzzle-modal" id="puzzleModal">
+    <div class="modal-content puzzle-modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-puzzle-piece"></i> Page Challenge</h3>
+            <button type="button" class="close" onclick="closePuzzleModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="puzzle-container">
+                <!-- Puzzle will be loaded here -->
+            </div>
+            <div id="puzzle-result" style="display: none;">
+                <!-- Results will be shown here -->
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline" onclick="skipPuzzle()">
+                <i class="fas fa-forward"></i> Skip Challenge
+            </button>
+            <button type="button" class="btn btn-primary" id="submit-puzzle-btn" onclick="submitPuzzle()">
+                <i class="fas fa-check"></i> Submit Answer
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Full Screen Drawing Canvas -->
+<div class="fullscreen-drawing" id="fullscreen-drawing">
+    <div class="drawing-header-bar">
+        <h3><i class="fas fa-palette"></i> Personal Whiteboard</h3>
+        <div class="toolbar-controls">
+            <button id="save-fullscreen-drawing" class="btn btn-success btn-sm">
+                <i class="fas fa-save"></i> Save to Server
+            </button>
+            <button id="download-fullscreen-drawing" class="btn btn-primary btn-sm">
+                <i class="fas fa-download"></i> Download
+            </button>
+            <button id="clear-fullscreen-canvas" class="btn btn-outline-danger btn-sm">
+                <i class="fas fa-trash"></i> Clear
+            </button>
+            <button id="close-fullscreen-drawing" class="btn btn-outline-light btn-sm">
+                <i class="fas fa-times"></i> Close
+            </button>
+        </div>
+    </div>
+    
+    <!-- Horizontal Toolbar -->
+    <div class="drawing-toolbar-container" id="drawing-toolbar">
+        <!-- Drawing Tools -->
+        <div class="toolbar-group">
+            <h5>Tools</h5>
+            <button class="toolbar-btn active" data-tool="brush" title="Brush">
+                <i class="fas fa-paint-brush"></i>
+                <span>Brush</span>
+            </button>
+            <button class="toolbar-btn" data-tool="eraser" title="Eraser">
+                <i class="fas fa-eraser"></i>
+                <span>Eraser</span>
+            </button>
+            <button class="toolbar-btn" data-tool="line" title="Line">
+                <i class="fas fa-slash"></i>
+                <span>Line</span>
+            </button>
+            <button class="toolbar-btn" data-tool="rectangle" title="Rectangle">
+                <i class="fas fa-square"></i>
+                <span>Rect</span>
+            </button>
+            <button class="toolbar-btn" data-tool="circle" title="Circle">
+                <i class="fas fa-circle"></i>
+                <span>Circle</span>
+            </button>
+            <button class="toolbar-btn" data-tool="text" title="Add Text">
+                <i class="fas fa-font"></i>
+                <span>Text</span>
+            </button>
+            <button class="toolbar-btn" data-tool="fill" title="Fill Color">
+                <i class="fas fa-fill-drip"></i>
+                <span>Fill</span>
+            </button>
+        </div>
+        
+        <!-- Colors -->
+        <div class="toolbar-group">
+            <h5>Colors</h5>
+            <div class="color-btn active" id="selected-color-btn" style="background: #000000;" title="Selected Color"></div>
+            <button class="toolbar-btn" id="color-palette-toggle" title="More Colors">
+                <i class="fas fa-palette"></i>
+                <span>More</span>
+            </button>
+        </div>
+        
+        <!-- Brush Size -->
+        <div class="toolbar-group">
+            <h5>Size</h5>
+            <div class="brush-size-display">
+                <span class="brush-size-label">Size:</span>
+                <input type="range" id="brush-size-slider" class="brush-size-slider" min="1" max="50" value="5">
+                <span class="brush-size-value" id="brush-size-value">5px</span>
+            </div>
+        </div>
+        
+        <!-- Actions -->
+        <div class="toolbar-group">
+            <h5>Actions</h5>
+            <button class="toolbar-btn" id="undo-btn" title="Undo (Ctrl+Z)">
+                <i class="fas fa-undo"></i>
+                <span>Undo</span>
+            </button>
+            <button class="toolbar-btn" id="redo-btn" title="Redo (Ctrl+Y)">
+                <i class="fas fa-redo"></i>
+                <span>Redo</span>
+            </button>
+        </div>
+    </div>
+    
+    <div class="drawing-canvas-fullscreen">
+        <canvas id="fullscreen-canvas"></canvas>
+        
+        <!-- Color Palette Popup -->
+        <div class="color-palette-popup" id="color-palette-popup">
+            <div class="color-option active" style="background: #000000;" data-color="#000000" title="Black"></div>
+            <div class="color-option" style="background: #FF0000;" data-color="#FF0000" title="Red"></div>
+            <div class="color-option" style="background: #00FF00;" data-color="#00FF00" title="Green"></div>
+            <div class="color-option" style="background: #0000FF;" data-color="#0000FF" title="Blue"></div>
+            <div class="color-option" style="background: #FFFF00;" data-color="#FFFF00" title="Yellow"></div>
+            <div class="color-option" style="background: #FF00FF;" data-color="#FF00FF" title="Magenta"></div>
+            <div class="color-option" style="background: #00FFFF;" data-color="#00FFFF" title="Cyan"></div>
+            <div class="color-option" style="background: #FFA500;" data-color="#FFA500" title="Orange"></div>
+            <div class="color-option" style="background: #800080;" data-color="#800080" title="Purple"></div>
+            <div class="color-option" style="background: #A52A2A;" data-color="#A52A2A" title="Brown"></div>
+            <div class="color-option" style="background: #FFFFFF; border: 1px solid #ccc;" data-color="#FFFFFF" title="White"></div>
+            <div class="color-option" style="background: #808080;" data-color="#808080" title="Gray"></div>
+        </div>
+        
+        <!-- Text Input Popup -->
+        <div class="text-input-popup" id="text-input-popup">
+            <input type="text" id="text-input" placeholder="Enter text here..." maxlength="100">
+            <div class="btn-group">
+                <button id="insert-text-btn" class="btn btn-primary btn-sm">Insert Text</button>
+                <button id="cancel-text-btn" class="btn btn-outline btn-sm">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script id="story-data" type="application/json">
+{
+    "id": {{ story.id }},
+    "title": "{{ story.title|replace('"', '\\"')|safe }}",
+    "pages": {{ pages|tojson|safe }},
+    "currentPage": {{ progress.current_page }},
+    "totalPages": {{ total_pages }},
+    "isCompleted": {% if progress.is_completed %}true{% else %}false{% endif %},
+    "teacher": "{{ story.teacher_first_name }} {{ story.teacher_last_name|replace('"', '\\"')|safe }}"
+}
+</script>
+
+<script id="puzzle-data" type="application/json">
+{
+    "puzzle": {{ puzzle|tojson|safe if puzzle else 'null' }},
+    "student_puzzle_progress": {{ student_puzzle_progress|tojson|safe if student_puzzle_progress else 'null' }}
+}
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Global reference to the drawing manager
+let drawingManagerInstance = null;
+let puzzleManager = null;
+
+// Text-to-Speech Manager
+class TextToSpeechManager {
+    constructor() {
+        this.speech = window.speechSynthesis;
+        this.currentSpeech = null;
+        this.isSpeaking = false;
+        this.voices = [];
+        this.selectedVoice = null;
+        this.rate = 1.0;
+        
+        this.init();
+    }
+    
+    init() {
+        this.loadVoices();
+        
+        if (this.speech.onvoiceschanged !== undefined) {
+            this.speech.onvoiceschanged = () => this.loadVoices();
+        }
+    }
+    
+    loadVoices() {
+        this.voices = this.speech.getVoices();
+        
+        const englishVoices = this.voices.filter(voice => 
+            voice.lang.startsWith('en') || voice.name.toLowerCase().includes('english')
+        );
+        
+        if (englishVoices.length > 0) {
+            this.selectedVoice = englishVoices[0];
+        }
+    }
+    
+    speak(text) {
+        if (!text || !this.speech) return;
+        
+        this.stop();
+        
+        this.currentSpeech = new SpeechSynthesisUtterance(text);
+        this.currentSpeech.rate = this.rate;
+        this.currentSpeech.voice = this.selectedVoice;
+        
+        this.currentSpeech.onstart = () => {
+            this.isSpeaking = true;
+            this.showSpeakingIndicator();
+        };
+        
+        this.currentSpeech.onend = () => {
+            this.isSpeaking = false;
+            this.hideSpeakingIndicator();
+        };
+        
+        this.currentSpeech.onerror = (event) => {
+            console.error('Speech synthesis error:', event);
+            this.isSpeaking = false;
+            this.hideSpeakingIndicator();
+            this.showNotification('Unable to read text aloud. Please try again.', 'error');
+        };
+        
+        this.speech.speak(this.currentSpeech);
+    }
+    
+    stop() {
+        if (this.speech && this.isSpeaking) {
+            this.speech.cancel();
+            this.isSpeaking = false;
+            this.hideSpeakingIndicator();
+        }
+    }
+    
+    showSpeakingIndicator() {
+        const indicator = document.getElementById('speaking-indicator');
+        if (indicator) {
+            indicator.style.display = 'flex';
+        }
+    }
+    
+    hideSpeakingIndicator() {
+        const indicator = document.getElementById('speaking-indicator');
+        if (indicator) {
+            indicator.style.display = 'none';
+        }
+    }
+    
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `story-notification alert alert-${type}`;
+        notification.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+            ${message}
+            <button type="button" class="close" onclick="this.parentElement.remove()">
+                <span>&times;</span>
+            </button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 3000);
+    }
+}
+
+// Full Screen Drawing Manager
+class FullScreenDrawingManager {
+    constructor() {
+        this.canvas = null;
+        this.ctx = null;
+        this.isDrawing = false;
+        this.currentTool = 'brush';
+        this.currentColor = '#000000';
+        this.brushSize = 5;
+        this.lastX = 0;
+        this.lastY = 0;
+        this.startX = 0;
+        this.startY = 0;
+        this.history = [];
+        this.historyIndex = -1;
+        this.textInputActive = false;
+        this.tempCanvas = null;
+        this.tempCtx = null;
+        this.storyId = null;
+        this.isSaving = false;
+        this.autoSaveTimer = null;
+        
+        this.init();
+    }
+    
+    init() {
+        this.canvas = document.getElementById('fullscreen-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        
+        // Get story ID from story data
+        const storyData = JSON.parse(document.getElementById('story-data').textContent);
+        this.storyId = storyData.id;
+        
+        // Create temporary canvas for shape previews
+        this.tempCanvas = document.createElement('canvas');
+        this.tempCtx = this.tempCanvas.getContext('2d');
+        
+        this.resizeCanvas();
+        window.addEventListener('resize', () => this.resizeCanvas());
+        
+        this.setupEventListeners();
+        this.setupToolbar();
+        this.clearCanvas();
+        this.updateColorIndicator();
+        this.updateSizeIndicator();
+        
+        // Load student's personal drawing from server
+        this.loadStudentDrawing();
+    }
+    
+    resizeCanvas() {
+        const container = this.canvas.parentElement;
+        this.canvas.width = container.clientWidth;
+        this.canvas.height = container.clientHeight;
+        
+        this.tempCanvas.width = container.clientWidth;
+        this.tempCanvas.height = container.clientHeight;
+        
+        this.redrawFromHistory();
+    }
+    
+    setupEventListeners() {
+        // Mouse events
+        this.canvas.addEventListener('mousedown', (e) => this.startDrawing(e));
+        this.canvas.addEventListener('mousemove', (e) => this.draw(e));
+        this.canvas.addEventListener('mouseup', () => this.stopDrawing());
+        this.canvas.addEventListener('mouseout', () => this.stopDrawing());
+        
+        // Touch events for mobile
+        this.canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            this.startDrawing(touch);
+        });
+        
+        this.canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            this.draw(touch);
+        });
+        
+        this.canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            this.stopDrawing();
+        });
+    }
+    
+    setupToolbar() {
+        // Tool buttons
+        document.querySelectorAll('.toolbar-btn[data-tool]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.toolbar-btn[data-tool]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.currentTool = btn.dataset.tool;
+                this.closePopupMenus();
+                
+                if (this.currentTool === 'text') {
+                    this.showTextInput();
+                }
+            });
+        });
+        
+        // Color palette toggle
+        document.getElementById('color-palette-toggle').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.toggleColorPalette();
+        });
+        
+        // Color options
+        document.querySelectorAll('.color-option').forEach(color => {
+            color.addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.color-option').forEach(c => c.classList.remove('active'));
+                color.classList.add('active');
+                this.currentColor = color.dataset.color;
+                this.updateColorIndicator();
+                document.getElementById('color-palette-popup').classList.remove('active');
+            });
+        });
+        
+        // Brush size slider
+        const brushSlider = document.getElementById('brush-size-slider');
+        const brushSizeValue = document.getElementById('brush-size-value');
+        
+        brushSlider.addEventListener('input', (e) => {
+            this.brushSize = parseInt(e.target.value);
+            brushSizeValue.textContent = `${this.brushSize}px`;
+        });
+        
+        // Text input
+        document.getElementById('insert-text-btn').addEventListener('click', () => {
+            const text = document.getElementById('text-input').value;
+            if (text.trim()) {
+                this.addText(this.startX, this.startY, text);
+                document.getElementById('text-input').value = '';
+                document.getElementById('text-input-popup').classList.remove('active');
+                this.textInputActive = false;
+                this.autoSaveStudentDrawing();
+            }
+        });
+        
+        document.getElementById('cancel-text-btn').addEventListener('click', () => {
+            document.getElementById('text-input').value = '';
+            document.getElementById('text-input-popup').classList.remove('active');
+            this.textInputActive = false;
+        });
+        
+        // Undo/Redo buttons
+        document.getElementById('undo-btn').addEventListener('click', () => this.undo());
+        document.getElementById('redo-btn').addEventListener('click', () => this.redo());
+        
+        // Save button - Save to server (private to student)
+        document.getElementById('save-fullscreen-drawing').addEventListener('click', () => this.saveStudentDrawing());
+        
+        // Download button
+        document.getElementById('download-fullscreen-drawing').addEventListener('click', () => this.downloadDrawing());
+        
+        // Clear button
+        document.getElementById('clear-fullscreen-canvas').addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear your personal drawing? This will remove all your work.')) {
+                this.clearCanvas();
+                this.clearServerDrawing();
+            }
+        });
+    }
+    
+    toggleColorPalette() {
+        const palette = document.getElementById('color-palette-popup');
+        palette.classList.toggle('active');
+        
+        // Position near the color toggle button
+        const colorBtn = document.getElementById('color-palette-toggle');
+        const btnRect = colorBtn.getBoundingClientRect();
+        const toolbarRect = document.getElementById('drawing-toolbar').getBoundingClientRect();
+        palette.style.top = `${toolbarRect.bottom + 5}px`;
+        palette.style.left = `${btnRect.left}px`;
+        
+        // Close other popups
+        document.getElementById('text-input-popup').classList.remove('active');
+    }
+    
+    showTextInput() {
+        const popup = document.getElementById('text-input-popup');
+        popup.classList.add('active');
+        
+        // Position in center of canvas
+        const canvasRect = this.canvas.getBoundingClientRect();
+        popup.style.top = `${canvasRect.top + canvasRect.height/2 - 60}px`;
+        popup.style.left = `${canvasRect.left + canvasRect.width/2 - 150}px`;
+        
+        // Focus on input
+        setTimeout(() => {
+            document.getElementById('text-input').focus();
+        }, 100);
+    }
+    
+    closePopupMenus() {
+        document.getElementById('color-palette-popup').classList.remove('active');
+        document.getElementById('text-input-popup').classList.remove('active');
+        this.textInputActive = false;
+    }
+    
+    updateColorIndicator() {
+        const indicator = document.getElementById('selected-color-btn');
+        indicator.style.background = this.currentColor;
+    }
+    
+    updateSizeIndicator() {
+        const indicator = document.getElementById('brush-size-value');
+        indicator.textContent = `${this.brushSize}px`;
+    }
+    
+    getMousePos(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        return {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        };
+    }
+    
+    startDrawing(e) {
+        if (this.textInputActive) return;
+        
+        const pos = this.getMousePos(e);
+        this.isDrawing = true;
+        [this.lastX, this.lastY] = [pos.x, pos.y];
+        [this.startX, this.startY] = [pos.x, pos.y];
+        
+        if (['line', 'rectangle', 'circle'].includes(this.currentTool)) {
+            // Clear temporary canvas for shape preview
+            this.tempCtx.clearRect(0, 0, this.tempCanvas.width, this.tempCanvas.height);
+        } else if (this.currentTool !== 'text') {
+            this.saveState();
+        }
+    }
+    
+    draw(e) {
+        if (!this.isDrawing || this.textInputActive) return;
+        
+        const pos = this.getMousePos(e);
+        
+        switch(this.currentTool) {
+            case 'brush':
+                this.drawFreehand(pos.x, pos.y);
+                break;
+            case 'eraser':
+                this.erase(pos.x, pos.y);
+                break;
+            case 'line':
+                this.previewLine(pos.x, pos.y);
+                break;
+            case 'rectangle':
+                this.previewRectangle(pos.x, pos.y);
+                break;
+            case 'circle':
+                this.previewCircle(pos.x, pos.y);
+                break;
+            case 'fill':
+                this.fillArea(pos.x, pos.y);
+                this.isDrawing = false;
+                break;
+        }
+    }
+    
+    stopDrawing() {
+        if (!this.isDrawing) return;
+        
+        const pos = { x: this.lastX, y: this.lastY };
+        
+        switch(this.currentTool) {
+            case 'line':
+                this.finalizeLine(pos.x, pos.y);
+                break;
+            case 'rectangle':
+                this.finalizeRectangle(pos.x, pos.y);
+                break;
+            case 'circle':
+                this.finalizeCircle(pos.x, pos.y);
+                break;
+            default:
+                // For brush and eraser, save state when done
+                if (!['line', 'rectangle', 'circle', 'fill', 'text'].includes(this.currentTool)) {
+                    this.saveState();
+                }
+                break;
+        }
+        
+        this.isDrawing = false;
+        this.tempCtx.clearRect(0, 0, this.tempCanvas.width, this.tempCanvas.height);
+        
+        // Auto-save student's drawing
+        this.autoSaveStudentDrawing();
+    }
+    
+    drawFreehand(x, y) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.lastX, this.lastY);
+        this.ctx.lineTo(x, y);
+        this.ctx.strokeStyle = this.currentColor;
+        this.ctx.lineWidth = this.brushSize;
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+        this.ctx.stroke();
+        
+        [this.lastX, this.lastY] = [x, y];
+    }
+    
+    erase(x, y) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.lastX, this.lastY);
+        this.ctx.lineTo(x, y);
+        this.ctx.strokeStyle = '#FFFFFF';
+        this.ctx.lineWidth = this.brushSize;
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+        this.ctx.stroke();
+        
+        [this.lastX, this.lastY] = [x, y];
+    }
+    
+    previewLine(x, y) {
+        this.tempCtx.clearRect(0, 0, this.tempCanvas.width, this.tempCanvas.height);
+        this.tempCtx.beginPath();
+        this.tempCtx.moveTo(this.startX, this.startY);
+        this.tempCtx.lineTo(x, y);
+        this.tempCtx.strokeStyle = this.currentColor;
+        this.tempCtx.lineWidth = this.brushSize;
+        this.tempCtx.lineCap = 'round';
+        this.tempCtx.stroke();
+        
+        // Draw on main canvas
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.redrawFromHistory();
+        this.ctx.drawImage(this.tempCanvas, 0, 0);
+    }
+    
+    finalizeLine(x, y) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.startX, this.startY);
+        this.ctx.lineTo(x, y);
+        this.ctx.strokeStyle = this.currentColor;
+        this.ctx.lineWidth = this.brushSize;
+        this.ctx.lineCap = 'round';
+        this.ctx.stroke();
+        
+        this.saveState();
+        this.autoSaveStudentDrawing();
+    }
+    
+    previewRectangle(x, y) {
+        this.tempCtx.clearRect(0, 0, this.tempCanvas.width, this.tempCanvas.height);
+        const width = x - this.startX;
+        const height = y - this.startY;
+        
+        this.tempCtx.beginPath();
+        this.tempCtx.rect(this.startX, this.startY, width, height);
+        this.tempCtx.strokeStyle = this.currentColor;
+        this.tempCtx.lineWidth = this.brushSize;
+        this.tempCtx.stroke();
+        
+        // Draw on main canvas
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.redrawFromHistory();
+        this.ctx.drawImage(this.tempCanvas, 0, 0);
+    }
+    
+    finalizeRectangle(x, y) {
+        const width = x - this.startX;
+        const height = y - this.startY;
+        
+        this.ctx.beginPath();
+        this.ctx.rect(this.startX, this.startY, width, height);
+        this.ctx.strokeStyle = this.currentColor;
+        this.ctx.lineWidth = this.brushSize;
+        this.ctx.stroke();
+        
+        this.saveState();
+        this.autoSaveStudentDrawing();
+    }
+    
+    previewCircle(x, y) {
+        this.tempCtx.clearRect(0, 0, this.tempCanvas.width, this.tempCanvas.height);
+        const radius = Math.sqrt(
+            Math.pow(x - this.startX, 2) + 
+            Math.pow(y - this.startY, 2)
+        );
+        
+        this.tempCtx.beginPath();
+        this.tempCtx.arc(this.startX, this.startY, radius, 0, Math.PI * 2);
+        this.tempCtx.strokeStyle = this.currentColor;
+        this.tempCtx.lineWidth = this.brushSize;
+        this.tempCtx.stroke();
+        
+        // Draw on main canvas
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.redrawFromHistory();
+        this.ctx.drawImage(this.tempCanvas, 0, 0);
+    }
+    
+    finalizeCircle(x, y) {
+        const radius = Math.sqrt(
+            Math.pow(x - this.startX, 2) + 
+            Math.pow(y - this.startY, 2)
+        );
+        
+        this.ctx.beginPath();
+        this.ctx.arc(this.startX, this.startY, radius, 0, Math.PI * 2);
+        this.ctx.strokeStyle = this.currentColor;
+        this.ctx.lineWidth = this.brushSize;
+        this.ctx.stroke();
+        
+        this.saveState();
+        this.autoSaveStudentDrawing();
+    }
+    
+    fillArea(x, y) {
+        const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+        const targetColor = this.getPixelColor(imageData, x, y);
+        const fillColor = this.hexToRgb(this.currentColor);
+        
+        this.floodFill(imageData, x, y, targetColor, fillColor);
+        this.ctx.putImageData(imageData, 0, 0);
+        
+        this.saveState();
+        this.autoSaveStudentDrawing();
+    }
+    
+    getPixelColor(imageData, x, y) {
+        x = Math.round(x);
+        y = Math.round(y);
+        const index = (y * imageData.width + x) * 4;
+        return {
+            r: imageData.data[index],
+            g: imageData.data[index + 1],
+            b: imageData.data[index + 2],
+            a: imageData.data[index + 3]
+        };
+    }
+    
+    hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : { r: 0, g: 0, b: 0 };
+    }
+    
+    colorsMatch(color1, color2) {
+        return color1.r === color2.r && 
+               color1.g === color2.g && 
+               color1.b === color2.b;
+    }
+    
+    floodFill(imageData, x, y, targetColor, fillColor) {
+        const stack = [[Math.round(x), Math.round(y)]];
+        const visited = new Set();
+        const width = imageData.width;
+        const height = imageData.height;
+        
+        while (stack.length > 0) {
+            const [cx, cy] = stack.pop();
+            const key = `${cx},${cy}`;
+            
+            if (visited.has(key)) continue;
+            visited.add(key);
+            
+            if (cx < 0 || cx >= width || cy < 0 || cy >= height) continue;
+            
+            const currentColor = this.getPixelColor(imageData, cx, cy);
+            if (!this.colorsMatch(currentColor, targetColor)) continue;
+            
+            // Set the pixel color
+            const index = (cy * width + cx) * 4;
+            imageData.data[index] = fillColor.r;
+            imageData.data[index + 1] = fillColor.g;
+            imageData.data[index + 2] = fillColor.b;
+            imageData.data[index + 3] = 255;
+            
+            // Add neighboring pixels
+            stack.push([cx + 1, cy]);
+            stack.push([cx - 1, cy]);
+            stack.push([cx, cy + 1]);
+            stack.push([cx, cy - 1]);
+        }
+    }
+    
+    addText(x, y, text) {
+        this.ctx.font = `${this.brushSize * 4}px Arial`;
+        this.ctx.fillStyle = this.currentColor;
+        this.ctx.fillText(text, x, y);
+        this.saveState();
+        this.autoSaveStudentDrawing();
+    }
+    
+    saveState() {
+        const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+        this.history = this.history.slice(0, this.historyIndex + 1);
+        this.history.push(imageData);
+        this.historyIndex++;
+        
+        // Limit history to 50 states
+        if (this.history.length > 50) {
+            this.history.shift();
+            this.historyIndex--;
+        }
+        
+        this.updateUndoRedoButtons();
+    }
+    
+    redrawFromHistory() {
+        if (this.history.length > 0 && this.historyIndex >= 0) {
+            this.ctx.putImageData(this.history[this.historyIndex], 0, 0);
+        } else {
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+    }
+    
+    undo() {
+        if (this.historyIndex > 0) {
+            this.historyIndex--;
+            this.redrawFromHistory();
+            this.updateUndoRedoButtons();
+            this.autoSaveStudentDrawing();
+        }
+    }
+    
+    redo() {
+        if (this.historyIndex < this.history.length - 1) {
+            this.historyIndex++;
+            this.redrawFromHistory();
+            this.updateUndoRedoButtons();
+            this.autoSaveStudentDrawing();
+        }
+    }
+    
+    updateUndoRedoButtons() {
+        const undoBtn = document.getElementById('undo-btn');
+        const redoBtn = document.getElementById('redo-btn');
+        
+        undoBtn.disabled = this.historyIndex <= 0;
+        redoBtn.disabled = this.historyIndex >= this.history.length - 1;
+        
+        undoBtn.classList.toggle('disabled', undoBtn.disabled);
+        redoBtn.classList.toggle('disabled', redoBtn.disabled);
+    }
+    
+    clearCanvas() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.history = [];
+        this.historyIndex = -1;
+        this.saveState();
+    }
+    
+    async saveStudentDrawing() {
+        try {
+            if (this.isSaving) return;
+            this.isSaving = true;
+            
+            // Ensure canvas is properly initialized
+            if (!this.canvas || !this.ctx) {
+                console.error('Canvas not initialized');
+                this.showNotification('Cannot save: Canvas not ready', 'error');
+                this.isSaving = false;
+                return;
+            }
+            
+            // Get the data URL from canvas
+            const dataURL = this.canvas.toDataURL('image/png');
+            
+            // Save to server (private to this student)
+            const response = await fetch('/api/save_student_drawing', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    story_id: this.storyId,
+                    drawing_data: dataURL
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showNotification('Your personal drawing saved successfully!', 'success');
+                console.log('Student drawing saved to server:', result);
+            } else {
+                this.showNotification('Error saving drawing: ' + (result.error || 'Unknown error'), 'error');
+            }
+            
+            this.isSaving = false;
+        } catch (error) {
+            console.error('Error saving student drawing to server:', error);
+            this.showNotification('Error saving drawing: ' + error.message, 'error');
+            this.isSaving = false;
+        }
+    }
+    
+    async loadStudentDrawing() {
+        try {
+            const response = await fetch(`/api/get_student_drawing?story_id=${this.storyId}`);
+            const result = await response.json();
+            
+            if (result.success) {
+                if (result.drawing_data) {
+                    const img = new Image();
+                    img.onload = () => {
+                        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                        this.ctx.drawImage(img, 0, 0);
+                        this.saveState(); // Save to history
+                        console.log('Student drawing loaded from server');
+                        this.showNotification('Your drawing loaded successfully!', 'success');
+                    };
+                    img.onerror = (err) => {
+                        console.warn('Failed to load student drawing from server:', err);
+                        this.showNotification('Could not load your saved drawing', 'warning');
+                    };
+                    img.src = result.drawing_data;
+                } else {
+                    console.log('No saved drawing found for this student');
+                }
+            } else {
+                console.warn('Failed to load drawing:', result.error);
+                this.showNotification('Could not load drawing: ' + result.error, 'warning');
+            }
+        } catch (error) {
+            console.error('Error loading student drawing from server:', error);
+            this.showNotification('Error loading drawing: ' + error.message, 'error');
+        }
+    }
+    
+    async clearServerDrawing() {
+        try {
+            const response = await fetch('/api/clear_student_drawing', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    story_id: this.storyId
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showNotification('Drawing cleared from server', 'success');
+            } else {
+                this.showNotification('Error clearing drawing: ' + result.error, 'error');
+            }
+        } catch (error) {
+            console.error('Error clearing drawing from server:', error);
+            this.showNotification('Error clearing drawing: ' + error.message, 'error');
+        }
+    }
+    
+    autoSaveStudentDrawing() {
+        // Debounced auto-save to prevent too many requests
+        if (this.autoSaveTimer) {
+            clearTimeout(this.autoSaveTimer);
+        }
+        
+        this.autoSaveTimer = setTimeout(() => {
+            this.saveStudentDrawing();
+        }, 2000); // Save 2 seconds after last change
+    }
+    
+    downloadDrawing() {
+        try {
+            // Ensure canvas is properly initialized
+            if (!this.canvas) {
+                console.error('Canvas not initialized');
+                this.showNotification('Cannot download: Canvas not ready', 'error');
+                return;
+            }
+            
+            // Create download link
+            const link = document.createElement('a');
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            link.download = `my-drawing-${timestamp}.png`;
+            link.href = this.canvas.toDataURL('image/png');
+            
+            // Trigger download
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Show success notification
+            this.showNotification('Drawing downloaded successfully!', 'success');
+        } catch (error) {
+            console.error('Error downloading drawing:', error);
+            this.showNotification('Error downloading drawing: ' + error.message, 'error');
+        }
+    }
+    
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `story-notification alert alert-${type}`;
+        notification.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+            ${message}
+            <button type="button" class="close" onclick="this.parentElement.remove()">
+                <span>&times;</span>
+            </button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 3000);
+    }
+}
+
+// Story Viewer Class
+class StoryViewer {
+    constructor(storyId, pages, currentPage) {
+        this.storyId = storyId;
+        this.pages = pages;
+        this.currentPage = parseInt(currentPage);
+        this.totalPages = pages.length;
+        this.isPlaying = false;
+        this.audio = null;
+        this.autoPlayInterval = null;
+        this.currentDuration = 5000;
+        this.tts = new TextToSpeechManager();
+        
+        this.init();
+    }
+    
+    init() {
+        this.bindEvents();
+        this.setupFullScreenDrawing();
+        this.updatePage();
+    }
+    
+    bindEvents() {
+        document.getElementById('prev-page').addEventListener('click', () => this.prevPage());
+        document.getElementById('next-page').addEventListener('click', () => this.nextPage());
+        document.getElementById('auto-play').addEventListener('click', () => this.toggleAutoPlay());
+        document.getElementById('play-narration').addEventListener('click', () => this.toggleNarration());
+        document.getElementById('stop-speech').addEventListener('click', () => this.stopSpeech());
+        
+        // Full screen drawing buttons
+        document.getElementById('toggle-fullscreen-drawing').addEventListener('click', () => this.toggleFullScreenDrawing());
+        document.getElementById('close-fullscreen-drawing').addEventListener('click', () => this.toggleFullScreenDrawing());
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            
+            const isDrawingOpen = document.getElementById('fullscreen-drawing').classList.contains('active');
+            
+            switch(e.key) {
+                case 'ArrowLeft':
+                    if (!isDrawingOpen) {
+                        e.preventDefault();
+                        this.prevPage();
+                    }
+                    break;
+                case 'ArrowRight':
+                case ' ':
+                    if (!isDrawingOpen) {
+                        e.preventDefault();
+                        this.nextPage();
+                    }
+                    break;
+                case 'a':
+                case 'A':
+                    if ((e.ctrlKey || e.metaKey) && !isDrawingOpen) {
+                        e.preventDefault();
+                        this.toggleAutoPlay();
+                    }
+                    break;
+                case 'r':
+                case 'R':
+                    if ((e.ctrlKey || e.metaKey) && !isDrawingOpen) {
+                        e.preventDefault();
+                        this.toggleNarration();
+                    }
+                    break;
+                case 'f':
+                case 'F':
+                    if (e.ctrlKey || e.metaKey) {
+                        e.preventDefault();
+                        this.toggleFullScreenDrawing();
+                    }
+                    break;
+                case 'Escape':
+                    if (isDrawingOpen) {
+                        this.toggleFullScreenDrawing();
+                    }
+                    break;
+            }
+        });
+    }
+    
+    setupFullScreenDrawing() {
+        // Initialize drawing manager when needed
+        document.getElementById('toggle-fullscreen-drawing').addEventListener('click', () => {
+            if (!drawingManagerInstance) {
+                drawingManagerInstance = new FullScreenDrawingManager();
+            }
+        });
+    }
+    
+    toggleFullScreenDrawing() {
+        const drawingPanel = document.getElementById('fullscreen-drawing');
+        drawingPanel.classList.toggle('active');
+        
+        if (drawingPanel.classList.contains('active')) {
+            document.body.style.overflow = 'hidden';
+            
+            // Initialize drawing manager if not already done
+            if (!drawingManagerInstance) {
+                drawingManagerInstance = new FullScreenDrawingManager();
+            } else {
+                // Resize canvas
+                setTimeout(() => {
+                    drawingManagerInstance.resizeCanvas();
+                }, 100);
+            }
+        } else {
+            document.body.style.overflow = '';
+            
+            // Close any open popups
+            if (drawingManagerInstance) {
+                drawingManagerInstance.closePopupMenus();
+            }
+        }
+    }
+    
+    updatePage() {
+        const pageIndex = this.currentPage - 1;
+        const page = this.pages[pageIndex];
+        
+        if (!page) {
+            console.error('Page not found:', this.currentPage);
+            return;
+        }
+        
+        // Stop any ongoing speech
+        this.tts.stop();
+        
+        /* 1. IMAGE HANDLING */
+        const img = document.getElementById('story-image');
+        const placeholder = document.getElementById('image-placeholder');
+        
+        img.classList.add('loading');
+        
+        if (page.image_url && page.image_url.trim() !== '') {
+            const imageUrl = `/static/uploads/story_pages/${page.image_url}`;
+            
+            const preloadImg = new Image();
+            preloadImg.onload = () => {
+                img.src = imageUrl;
+                img.alt = `Page ${this.currentPage} - ${this.getStoryTitle()}`;
+                img.style.display = 'block';
+                img.classList.remove('loading');
+                placeholder.style.display = 'none';
+                
+                img.classList.add('page-transition-next');
+                setTimeout(() => img.classList.remove('page-transition-next'), 500);
+            };
+            
+            preloadImg.onerror = () => {
+                console.warn('Failed to load story image:', page.image_url);
+                img.style.display = 'none';
+                img.classList.remove('loading');
+                placeholder.style.display = 'flex';
+            };
+            
+            preloadImg.src = imageUrl;
+        } else {
+            img.style.display = 'none';
+            img.classList.remove('loading');
+            placeholder.style.display = 'flex';
+        }
+        
+        /* 2. TEXT CONTENT */
+        const textElement = document.getElementById('story-text');
+        if (textElement) {
+            textElement.textContent = page.text_content || '';
+        }
+        
+        /* 3. IMPORTANT NOTES */
+        const notesElement = document.getElementById('story-notes');
+        const notesTextElement = document.getElementById('notes-text');
+        
+        if (page.important_notes && page.important_notes.trim() !== '') {
+            notesTextElement.textContent = page.important_notes;
+            notesElement.style.display = 'block';
+        } else {
+            notesElement.style.display = 'none';
+        }
+        
+        /* 4. PAGE INDICATOR */
+        const indicator = document.getElementById('page-indicator');
+        if (indicator) {
+            indicator.textContent = `Page ${this.currentPage} of ${this.totalPages}`;
+        }
+        
+        /* 5. AUTO-PLAY DURATION */
+        this.currentDuration = (page.duration_seconds || 5) * 1000;
+        
+        /* 6. UPDATE PROGRESS */
+        this.updateProgress();
+        
+        /* 7. LOAD AUDIO NARRATION */
+        this.loadNarration(page.narration_audio_url);
+        
+        /* 8. CHECK IF STORY IS COMPLETED */
+        this.checkCompletion();
+        
+        /* 9. UPDATE BROWSER TITLE */
+        this.updateBrowserTitle();
+    }
+    
+    getStoryTitle() {
+        try {
+            const storyData = JSON.parse(document.getElementById('story-data').textContent);
+            return storyData.title || 'Story';
+        } catch (e) {
+            return 'Story';
+        }
+    }
+    
+    loadNarration(audioUrl) {
+        if (this.audio) {
+            this.audio.pause();
+            this.audio = null;
+            this.isPlaying = false;
+        }
+        
+        const btn = document.getElementById('play-narration');
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-volume-up"></i> Read Aloud';
+            btn.classList.remove('active');
+        }
+        
+        if (audioUrl && audioUrl.trim() !== '') {
+            const audioPath = `/static/uploads/stories/${audioUrl}`;
+            this.audio = new Audio(audioPath);
+            
+            this.audio.oncanplaythrough = () => {
+                console.log('Audio loaded successfully');
+            };
+            
+            this.audio.onerror = (e) => {
+                console.error('Failed to load audio:', audioPath, e);
+                this.audio = null;
+            };
+            
+            this.audio.onended = () => {
+                this.isPlaying = false;
+                const btn = document.getElementById('play-narration');
+                if (btn) {
+                    btn.innerHTML = '<i class="fas fa-volume-up"></i> Read Aloud';
+                    btn.classList.remove('active');
+                }
+            };
+        }
+    }
+    
+    toggleNarration() {
+        const btn = document.getElementById('play-narration');
+        
+        if (this.audio) {
+            if (this.audio.paused) {
+                this.audio.play()
+                    .then(() => {
+                        this.isPlaying = true;
+                        btn.innerHTML = '<i class="fas fa-volume-mute"></i> Stop';
+                        btn.classList.add('active');
+                    })
+                    .catch(error => {
+                        console.error('Error playing audio:', error);
+                        this.speakText();
+                    });
+            } else {
+                this.audio.pause();
+                this.isPlaying = false;
+                btn.innerHTML = '<i class="fas fa-volume-up"></i> Read Aloud';
+                btn.classList.remove('active');
+            }
+        } else {
+            this.speakText();
+        }
+    }
+    
+    speakText() {
+        const btn = document.getElementById('play-narration');
+        
+        if (this.tts.isSpeaking) {
+            this.tts.stop();
+            btn.innerHTML = '<i class="fas fa-volume-up"></i> Read Aloud';
+            btn.classList.remove('active');
+            return;
+        }
+        
+        const textElement = document.getElementById('story-text');
+        const notesTextElement = document.getElementById('notes-text');
+        
+        let textToRead = '';
+        
+        if (textElement && textElement.textContent.trim()) {
+            textToRead += textElement.textContent.trim();
+        }
+        
+        const notesElement = document.getElementById('story-notes');
+        if (notesElement.style.display !== 'none' && notesTextElement.textContent.trim()) {
+            textToRead += '\n\nImportant Notes:\n' + notesTextElement.textContent.trim();
+        }
+        
+        if (textToRead.trim() === '') {
+            this.tts.showNotification('No text content to read.', 'warning');
+            return;
+        }
+        
+        this.tts.speak(textToRead);
+        btn.innerHTML = '<i class="fas fa-volume-mute"></i> Stop';
+        btn.classList.add('active');
+    }
+    
+    stopSpeech() {
+        this.tts.stop();
+        const btn = document.getElementById('play-narration');
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-volume-up"></i> Read Aloud';
+            btn.classList.remove('active');
+        }
+    }
+    
+    prevPage() {
+        if (this.currentPage > 1) {
+            this.currentPage--;
+            this.updatePage();
+        }
+    }
+    
+    nextPage() {
+        if (this.currentPage < this.totalPages) {
+            this.currentPage++;
+            this.updatePage();
+        } else {
+            this.completeStory();
+        }
+    }
+    
+    toggleAutoPlay() {
+        const btn = document.getElementById('auto-play');
+        
+        if (this.autoPlayInterval) {
+            clearInterval(this.autoPlayInterval);
+            this.autoPlayInterval = null;
+            btn.innerHTML = '<i class="fas fa-play"></i> Auto-play';
+            btn.classList.remove('active');
+        } else {
+            btn.innerHTML = '<i class="fas fa-pause"></i> Stop Auto-play';
+            btn.classList.add('active');
+            
+            this.autoPlayInterval = setInterval(() => {
+                if (this.currentPage < this.totalPages) {
+                    this.nextPage();
+                } else {
+                    this.toggleAutoPlay();
+                }
+            }, this.currentDuration);
+        }
+    }
+    
+    updateProgress() {
+        const isCompleted = this.currentPage === this.totalPages;
+        
+        const progressFill = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+        
+        if (progressFill) {
+            const progressPercent = (this.currentPage / this.totalPages) * 100;
+            progressFill.style.width = `${progressPercent}%`;
+            
+            if (progressText) {
+                progressText.textContent = `${Math.round(progressPercent)}% Complete`;
+            }
+        }
+        
+        fetch('/api/update_progress', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                story_id: this.storyId,
+                current_page: this.currentPage,
+                is_completed: isCompleted
+            })
+        }).then(response => response.json())
+          .then(data => {
+              if (data.success && data.is_completed) {
+                  this.showCompletionSection();
+              }
+          })
+          .catch(error => {
+              console.error('Error saving progress:', error);
+          });
+    }
+    
+    checkCompletion() {
+        const completionSection = document.getElementById('completion-section');
+        if (this.currentPage === this.totalPages) {
+            completionSection.style.display = 'block';
+        } else {
+            completionSection.style.display = 'none';
+        }
+    }
+    
+    showCompletionSection() {
+        const completionSection = document.getElementById('completion-section');
+        completionSection.style.display = 'block';
+    }
+    
+    updateBrowserTitle() {
+        document.title = `Page ${this.currentPage} - ${this.getStoryTitle()}`;
+    }
+    
+    completeStory() {
+        this.showCompletionSection();
+        this.updateProgress();
+    }
+}
+
+// Puzzle Management
+class PuzzleManager {
+    constructor() {
+        this.currentPuzzle = null;
+        this.studentAnswers = {};
+        this.timer = null;
+        this.timeLeft = 180;
+        this.isSubmitting = false;
+        this.puzzleAttempts = 0;
+        this.maxAttempts = 3;
+        this.selectedCells = new Set();
+    }
+    
+    initPuzzle(puzzleData) {
+        this.currentPuzzle = puzzleData;
+        this.studentAnswers = {};
+        this.selectedCells = new Set();
+        this.timeLeft = puzzleData.time_limit || 180;
+        this.puzzleAttempts = puzzleData.student_progress?.attempts || 0;
+        
+        this.loadPuzzleTemplate(puzzleData);
+        this.startTimer();
+    }
+    
+    loadPuzzleTemplate(puzzleData) {
+        const container = document.getElementById('puzzle-container');
+        const puzzleType = puzzleData.puzzle_type_name;
+        const puzzleDetails = JSON.parse(puzzleData.puzzle_data);
+        
+        let html = '';
+        
+        switch(puzzleType) {
+            case 'word_search':
+                html = this.createWordSearchPuzzle(puzzleDetails);
+                break;
+            case 'multiple_choice':
+                html = this.createMultipleChoicePuzzle(puzzleDetails);
+                break;
+            case 'true_false':
+                html = this.createTrueFalsePuzzle(puzzleDetails);
+                break;
+            case 'fill_blank':
+                html = this.createFillBlankPuzzle(puzzleDetails);
+                break;
+            default:
+                html = '<div class="alert alert-warning">Unknown puzzle type</div>';
+        }
+        
+        container.innerHTML = html;
+        this.attachEventListeners();
+    }
+    
+    createWordSearchPuzzle(puzzleDetails) {
+        const words = puzzleDetails.words || [];
+        const gridData = this.getGridFromPuzzleData(puzzleDetails);
+        const gridSize = gridData.length || 10;
+        
+        let gridHTML = `<div class="word-search-grid" style="grid-template-columns: repeat(${gridSize}, 1fr);">`;
+        
+        // Use the provided grid data or generate from words
+        if (gridData.length > 0) {
+            for (let row = 0; row < gridSize; row++) {
+                for (let col = 0; col < gridSize; col++) {
+                    const letter = gridData[row]?.[col] || this.getRandomLetter();
+                    gridHTML += `
+                        <div class="word-search-cell" 
+                             data-row="${row}" 
+                             data-col="${col}"
+                             data-letter="${letter}"
+                             onclick="handleWordSearchClick(this, ${row}, ${col})">
+                            ${letter}
+                        </div>
+                    `;
+                }
+            }
+        } else {
+            // Generate grid from words
+            const generatedGrid = this.generateWordSearchGrid(words, gridSize);
+            for (let row = 0; row < gridSize; row++) {
+                for (let col = 0; col < gridSize; col++) {
+                    const letter = generatedGrid[row][col];
+                    gridHTML += `
+                        <div class="word-search-cell" 
+                             data-row="${row}" 
+                             data-col="${col}"
+                             data-letter="${letter}"
+                             onclick="handleWordSearchClick(this, ${row}, ${col})">
+                            ${letter}
+                        </div>
+                    `;
+                }
+            }
+        }
+        
+        gridHTML += '</div>';
+        
+        let wordsHTML = '<div class="word-list">';
+        words.forEach((word, index) => {
+            wordsHTML += `
+                <div class="word-item" id="word-${index}">
+                    <i class="far fa-square"></i>
+                    <span>${word.toUpperCase()}</span>
+                </div>
+            `;
+        });
+        wordsHTML += '</div>';
+        
+        return `
+            <div class="puzzle-container">
+                <div class="puzzle-header">
+                    <h4><i class="fas fa-search"></i> Word Search Challenge</h4>
+                    <div class="puzzle-instructions">
+                        <p><strong>Find all the hidden words:</strong> Click and drag to select words in the grid. 
+                        Words can be horizontal, vertical, or diagonal. Found words will be crossed off the list.</p>
+                    </div>
+                </div>
+                
+                <div class="puzzle-timer" id="puzzle-timer">
+                    <i class="fas fa-clock"></i>
+                    <span id="timer-display">03:00</span>
+                </div>
+                
+                ${gridHTML}
+                ${wordsHTML}
+                
+                <div class="mt-4">
+                    <p class="text-muted"><small><i class="fas fa-lightbulb"></i> Hint: Words can be found horizontally, vertically, or diagonally.</small></p>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Add helper method to extract grid from puzzle data
+    getGridFromPuzzleData(puzzleDetails) {
+        // Try to get grid from puzzle data
+        if (puzzleDetails.grid) {
+            return puzzleDetails.grid;
+        }
+        
+        // If grid isn't provided, try to extract from the current puzzle
+        if (this.currentPuzzle && this.currentPuzzle.puzzle_data) {
+            try {
+                const data = JSON.parse(this.currentPuzzle.puzzle_data);
+                if (data.grid) {
+                    return data.grid;
+                }
+            } catch (e) {
+                console.error('Error parsing puzzle data:', e);
+            }
+        }
+        
+        return [];
+    }
+    
+    // Update the generateWordSearchGrid method
+    generateWordSearchGrid(words, size) {
+        // Create empty grid
+        const grid = Array(size).fill().map(() => Array(size).fill(''));
+        
+        // Define all possible directions
+        const directions = [
+            { dr: 0, dc: 1 },   // horizontal right
+            { dr: 0, dc: -1 },  // horizontal left
+            { dr: 1, dc: 0 },   // vertical down
+            { dr: -1, dc: 0 },  // vertical up
+            { dr: 1, dc: 1 },   // diagonal down-right
+            { dr: 1, dc: -1 },  // diagonal down-left
+            { dr: -1, dc: 1 },  // diagonal up-right
+            { dr: -1, dc: -1 }  // diagonal up-left
+        ];
+        
+        // Place words in grid
+        words.forEach(word => {
+            word = word.toUpperCase().replace(/\s+/g, '');
+            let placed = false;
+            let attempts = 0;
+            
+            while (!placed && attempts < 100) {
+                const direction = directions[Math.floor(Math.random() * directions.length)];
+                const row = Math.floor(Math.random() * size);
+                const col = Math.floor(Math.random() * size);
+                
+                // Check if word fits in this direction
+                const endRow = row + direction.dr * (word.length - 1);
+                const endCol = col + direction.dc * (word.length - 1);
+                
+                if (endRow >= 0 && endRow < size && endCol >= 0 && endCol < size) {
+                    let canPlace = true;
+                    
+                    // Check each cell
+                    for (let i = 0; i < word.length; i++) {
+                        const checkRow = row + direction.dr * i;
+                        const checkCol = col + direction.dc * i;
+                        const existing = grid[checkRow][checkCol];
+                        
+                        if (existing !== '' && existing !== word[i]) {
+                            canPlace = false;
+                            break;
+                        }
+                    }
+                    
+                    // Place the word
+                    if (canPlace) {
+                        for (let i = 0; i < word.length; i++) {
+                            const placeRow = row + direction.dr * i;
+                            const placeCol = col + direction.dc * i;
+                            grid[placeRow][placeCol] = word[i];
+                        }
+                        placed = true;
+                    }
+                }
+                attempts++;
+            }
+        });
+        
+        // Fill empty cells with random letters
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        for (let row = 0; row < size; row++) {
+            for (let col = 0; col < size; col++) {
+                if (grid[row][col] === '') {
+                    grid[row][col] = alphabet[Math.floor(Math.random() * alphabet.length)];
+                }
+            }
+        }
+        
+        return grid;
+    }
+    
+    // Add helper method to get random letter
+    getRandomLetter() {
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        return alphabet[Math.floor(Math.random() * alphabet.length)];
+    }
+    
+    createMultipleChoicePuzzle(puzzleDetails) {
+        const questions = puzzleDetails.questions || [];
+        
+        let questionsHTML = '';
+        questions.forEach((question, index) => {
+            let optionsHTML = '';
+            question.options.forEach((option, optIndex) => {
+                const optionLetter = String.fromCharCode(65 + optIndex); // A, B, C, D
+                optionsHTML += `
+                    <div class="mc-option" onclick="selectMCOption(this, ${index}, '${option.replace(/'/g, "\\'")}')">
+                        <input type="radio" name="q${index}" id="q${index}_${optIndex}" value="${option.replace(/'/g, "\\'")}">
+                        <label for="q${index}_${optIndex}">
+                            <span class="option-letter">${optionLetter}.</span> ${option}
+                        </label>
+                    </div>
+                `;
+            });
+            
+            questionsHTML += `
+                <div class="multiple-choice-question">
+                    <h5>${index + 1}. ${question.question}</h5>
+                    <div class="multiple-choice-options">
+                        ${optionsHTML}
+                    </div>
+                </div>
+            `;
+        });
+        
+        return `
+            <div class="puzzle-container">
+                <div class="puzzle-header">
+                    <h4><i class="fas fa-list-ol"></i> Multiple Choice Challenge</h4>
+                    <div class="puzzle-instructions">
+                        <p><strong>Choose the correct answer:</strong> Read each question carefully and select the best answer. Only one answer is correct for each question.</p>
+                    </div>
+                </div>
+                
+                <div class="puzzle-timer" id="puzzle-timer">
+                    <i class="fas fa-clock"></i>
+                    <span id="timer-display">03:00</span>
+                </div>
+                
+                <div class="puzzle-progress" id="question-progress">
+                    ${questions.map((_, i) => `<div class="progress-dot" id="progress-${i}"></div>`).join('')}
+                </div>
+                
+                ${questionsHTML}
+                
+                <div class="mt-4">
+                    <p class="text-muted"><small><i class="fas fa-lightbulb"></i> Hint: Think about what you just read in the story.</small></p>
+                </div>
+            </div>
+        `;
+    }
+    
+    createTrueFalsePuzzle(puzzleDetails) {
+        const statements = puzzleDetails.statements || [];
+        
+        let statementsHTML = '';
+        statements.forEach((statement, index) => {
+            statementsHTML += `
+                <div class="true-false-question">
+                    <div class="tf-statement">
+                        <strong>${index + 1}.</strong> ${statement.statement}
+                    </div>
+                    <div class="tf-options">
+                        <div class="tf-option true-option" 
+                             onclick="selectTFOption(this, ${index}, true)">
+                            <i class="fas fa-check"></i> True
+                        </div>
+                        <div class="tf-option false-option"
+                             onclick="selectTFOption(this, ${index}, false)">
+                            <i class="fas fa-times"></i> False
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        return `
+            <div class="puzzle-container">
+                <div class="puzzle-header">
+                    <h4><i class="fas fa-balance-scale"></i> True/False Challenge</h4>
+                    <div class="puzzle-instructions">
+                        <p><strong>Determine if statements are True or False:</strong> Based on what you read in the story, decide whether each statement is correct or not.</p>
+                    </div>
+                </div>
+                
+                <div class="puzzle-timer" id="puzzle-timer">
+                    <i class="fas fa-clock"></i>
+                    <span id="timer-display">03:00</span>
+                </div>
+                
+                ${statementsHTML}
+                
+                <div class="mt-4">
+                    <p class="text-muted"><small><i class="fas fa-lightbulb"></i> Hint: Pay attention to details in the story.</small></p>
+                </div>
+            </div>
+        `;
+    }
+    
+    createFillBlankPuzzle(puzzleDetails) {
+        const blanks = puzzleDetails.blanks || [];
+        
+        let blanksHTML = '';
+        blanks.forEach((blank, index) => {
+            const sentence = blank.sentence || '';
+            // Split by _____ to identify blanks
+            const parts = sentence.split('_____');
+            
+            let sentenceHTML = '';
+            for (let i = 0; i < parts.length; i++) {
+                sentenceHTML += parts[i];
+                if (i < parts.length - 1) {
+                    // Add input box for each blank
+                    sentenceHTML += `<span class="blank-input-container">
+                        <span class="blank-input-label">Blank ${i + 1}</span>
+                        <input type="text" 
+                               class="blank-input" 
+                               id="blank-${index}-${i}"
+                               placeholder="Enter word ${i + 1}"
+                               oninput="updateBlankAnswer(${index}, ${i}, this.value)">
+                    </span>`;
+                }
+            }
+            
+            blanksHTML += `
+                <div class="fill-blank-question">
+                    <div class="blank-sentence">${index + 1}. ${sentenceHTML}</div>
+                </div>
+            `;
+        });
+        
+        return `
+            <div class="puzzle-container">
+                <div class="puzzle-header">
+                    <h4><i class="fas fa-pen"></i> Fill in the Blanks</h4>
+                    <div class="puzzle-instructions">
+                        <p><strong>Complete the sentences:</strong> Fill in the missing words to complete the sentences from the story. Use context clues to help you.</p>
+                    </div>
+                </div>
+                
+                <div class="puzzle-timer" id="puzzle-timer">
+                    <i class="fas fa-clock"></i>
+                    <span id="timer-display">03:00</span>
+                </div>
+                
+                ${blanksHTML}
+                
+                <div class="mt-4">
+                    <p class="text-muted"><small><i class="fas fa-lightbulb"></i> Hint: The missing words appear in the story text.</small></p>
+                </div>
+            </div>
+        `;
+    }
+    
+    attachEventListeners() {
+        // Timer display update
+        this.updateTimerDisplay();
+        
+        // Word search specific events
+        if (this.currentPuzzle.puzzle_type_name === 'word_search') {
+            this.setupWordSearchEvents();
+        }
+    }
+    
+    setupWordSearchEvents() {
+        let isDragging = false;
+        const grid = document.querySelector('.word-search-grid');
+        
+        if (!grid) return;
+        
+        grid.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('word-search-cell')) {
+                isDragging = true;
+                this.handleCellSelection(e.target);
+            }
+        });
+        
+        grid.addEventListener('mouseover', (e) => {
+            if (isDragging && e.target.classList.contains('word-search-cell')) {
+                this.handleCellSelection(e.target);
+            }
+        });
+        
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            this.checkSelectedWord();
+        });
+        
+        // Touch events for mobile
+        grid.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const cell = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (cell && cell.classList.contains('word-search-cell')) {
+                isDragging = true;
+                this.handleCellSelection(cell);
+            }
+        });
+        
+        grid.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (isDragging) {
+                const touch = e.touches[0];
+                const cell = document.elementFromPoint(touch.clientX, touch.clientY);
+                if (cell && cell.classList.contains('word-search-cell')) {
+                    this.handleCellSelection(cell);
+                }
+            }
+        });
+        
+        document.addEventListener('touchend', () => {
+            isDragging = false;
+            this.checkSelectedWord();
+        });
+    }
+    
+    handleCellSelection(cell) {
+        const row = parseInt(cell.dataset.row);
+        const col = parseInt(cell.dataset.col);
+        const key = `${row},${col}`;
+        
+        if (!this.selectedCells.has(key)) {
+            this.selectedCells.add(key);
+            cell.classList.add('selected');
+        }
+    }
+    
+    // Update the isStraightLine method in PuzzleManager
+    isStraightLine(cells) {
+        if (cells.length < 2) return false;
+        
+        // Sort cells
+        cells.sort((a, b) => {
+            if (a.row === b.row) return a.col - b.col;
+            return a.row - b.row;
+        });
+        
+        // Check if all rows are same (horizontal)
+        const sameRow = cells.every(cell => cell.row === cells[0].row);
+        if (sameRow) {
+            // Check if columns are consecutive
+            for (let i = 1; i < cells.length; i++) {
+                if (cells[i].col !== cells[i-1].col + 1) return false;
+            }
+            return true;
+        }
+        
+        // Check if all columns are same (vertical)
+        const sameCol = cells.every(cell => cell.col === cells[0].col);
+        if (sameCol) {
+            // Check if rows are consecutive
+            for (let i = 1; i < cells.length; i++) {
+                if (cells[i].row !== cells[i-1].row + 1) return false;
+            }
+            return true;
+        }
+        
+        // Check diagonal
+        const rowDiff = cells[1].row - cells[0].row;
+        const colDiff = cells[1].col - cells[0].col;
+        
+        if (Math.abs(rowDiff) === Math.abs(colDiff) && rowDiff !== 0) {
+            // Check if all cells follow the same pattern
+            for (let i = 1; i < cells.length; i++) {
+                if (cells[i].row !== cells[i-1].row + rowDiff || 
+                    cells[i].col !== cells[i-1].col + colDiff) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        
+        return false;
+    }
+    
+    // Update the checkSelectedWord method in PuzzleManager
+    checkSelectedWord() {
+        if (this.selectedCells.size < 2) {
+            // Clear selection if too small
+            this.clearSelection();
+            return;
+        }
+        
+        // Convert selected cells to array
+        const cells = Array.from(this.selectedCells).map(key => {
+            const [row, col] = key.split(',').map(Number);
+            return { row, col };
+        });
+        
+        // Sort cells
+        cells.sort((a, b) => {
+            if (a.row === b.row) return a.col - b.col;
+            return a.row - b.row;
+        });
+        
+        // Check if cells form a straight line
+        if (this.isStraightLine(cells)) {
+            // Extract word from cells
+            const word = cells.map(cell => {
+                const cellElement = document.querySelector(`[data-row="${cell.row}"][data-col="${cell.col}"]`);
+                return cellElement ? cellElement.dataset.letter : '';
+            }).join('');
+            
+            // Check against word list
+            const puzzleDetails = JSON.parse(this.currentPuzzle.puzzle_data);
+            const words = puzzleDetails.words || [];
+            
+            // Check both forward and reverse
+            const foundIndex = words.findIndex(w => {
+                const upperWord = w.toUpperCase();
+                return upperWord === word || 
+                       upperWord === word.split('').reverse().join('');
+            });
+            
+            if (foundIndex !== -1) {
+                // Mark word as found
+                this.markWordAsFound(foundIndex, cells);
+            } else {
+                // Not a valid word
+                this.clearSelection();
+            }
+        } else {
+            // Not a straight line
+            this.clearSelection();
+        }
+    }
+    
+    // Update the markWordAsFound method
+    markWordAsFound(wordIndex, cells) {
+        const wordItem = document.getElementById(`word-${wordIndex}`);
+        if (wordItem && !wordItem.classList.contains('found')) {
+            wordItem.classList.add('found');
+            wordItem.querySelector('i').className = 'fas fa-check-square text-success';
+            
+            // Mark cells as found
+            cells.forEach(cell => {
+                const cellElement = document.querySelector(`[data-row="${cell.row}"][data-col="${cell.col}"]`);
+                if (cellElement) {
+                    cellElement.classList.remove('selected');
+                    cellElement.classList.add('found');
+                }
+            });
+            
+            // Update answers
+            this.studentAnswers[`word_${wordIndex}`] = true;
+            
+            // Clear selection
+            this.selectedCells.clear();
+            
+            // Check if all words found
+            const puzzleDetails = JSON.parse(this.currentPuzzle.puzzle_data);
+            const words = puzzleDetails.words || [];
+            const allFound = words.every((_, idx) => this.studentAnswers[`word_${idx}`]);
+            
+            if (allFound) {
+                this.showNotification('All words found! Submit your answer.', 'success');
+            }
+        }
+    }
+    
+    clearSelection() {
+        document.querySelectorAll('.word-search-cell.selected:not(.found)').forEach(cell => {
+            cell.classList.remove('selected');
+        });
+        this.selectedCells.clear();
+    }
+    
+    startTimer() {
+        this.updateTimerDisplay();
+        
+        this.timer = setInterval(() => {
+            this.timeLeft--;
+            this.updateTimerDisplay();
+            
+            if (this.timeLeft <= 0) {
+                this.timeUp();
+            } else if (this.timeLeft <= 30) {
+                this.showTimeWarning();
+            }
+        }, 1000);
+    }
+    
+    updateTimerDisplay() {
+        const timerDisplay = document.getElementById('timer-display');
+        if (timerDisplay) {
+            const minutes = Math.floor(this.timeLeft / 60);
+            const seconds = this.timeLeft % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+    }
+    
+    showTimeWarning() {
+        const timer = document.getElementById('puzzle-timer');
+        if (timer) {
+            timer.classList.add('timer-warning');
+        }
+    }
+    
+    timeUp() {
+        clearInterval(this.timer);
+        this.showNotification('Time\'s up! Submitting your answers...', 'warning');
+        setTimeout(() => {
+            this.submitPuzzle();
+        }, 2000);
+    }
+    
+    submitPuzzle() {
+        if (this.isSubmitting) return;
+        
+        this.isSubmitting = true;
+        clearInterval(this.timer);
+        
+        // Validate that all questions are answered
+        const puzzleType = this.currentPuzzle.puzzle_type_name;
+        const puzzleDetails = JSON.parse(this.currentPuzzle.puzzle_data);
+        let allAnswered = true;
+        
+        if (puzzleType === 'multiple_choice') {
+            const totalQuestions = puzzleDetails.questions.length;
+            for (let i = 0; i < totalQuestions; i++) {
+                if (!this.studentAnswers[`q${i}`]) {
+                    allAnswered = false;
+                    break;
+                }
+            }
+        } else if (puzzleType === 'true_false') {
+            const totalStatements = puzzleDetails.statements.length;
+            for (let i = 0; i < totalStatements; i++) {
+                if (this.studentAnswers[`q${i}`] === undefined) {
+                    allAnswered = false;
+                    break;
+                }
+            }
+        } else if (puzzleType === 'fill_blank') {
+            const totalBlanks = puzzleDetails.blanks.length;
+            for (let i = 0; i < totalBlanks; i++) {
+                const blank = puzzleDetails.blanks[i];
+                const blankCount = (blank.sentence.match(/_____/g) || []).length;
+                for (let j = 0; j < blankCount; j++) {
+                    if (!this.studentAnswers[`blank_${i}_${j}`]) {
+                        allAnswered = false;
+                        break;
+                    }
+                }
+                if (!allAnswered) break;
+            }
+        } else if (puzzleType === 'word_search') {
+            const totalWords = puzzleDetails.words.length;
+            for (let i = 0; i < totalWords; i++) {
+                if (this.studentAnswers[`word_${i}`] === undefined) {
+                    this.studentAnswers[`word_${i}`] = false;
+                }
+            }
+            // Word search doesn't require all words to be found
+            allAnswered = true;
+        }
+        
+        if (!allAnswered) {
+            if (!confirm('You haven\'t answered all questions. Submit anyway?')) {
+                this.isSubmitting = false;
+                this.startTimer();
+                return;
+            }
+        }
+        
+        // Disable submit button
+        const submitBtn = document.getElementById('submit-puzzle-btn');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+        }
+        
+        // Send to server
+        fetch('/api/submit_puzzle_answer', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                puzzle_id: this.currentPuzzle.id,
+                answers: this.studentAnswers
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                this.showPuzzleResult(data);
+            } else {
+                this.showNotification(data.error || 'Error submitting puzzle', 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-check"></i> Submit Answer';
+                this.isSubmitting = false;
+                this.startTimer();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            this.showNotification('Network error. Please try again.', 'error');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-check"></i> Submit Answer';
+            this.isSubmitting = false;
+            this.startTimer();
+        });
+    }
+    
+    showPuzzleResult(result) {
+        const container = document.getElementById('puzzle-container');
+        const resultDiv = document.getElementById('puzzle-result');
+        
+        if (!container || !resultDiv) return;
+        
+        // Hide puzzle container, show results
+        container.style.display = 'none';
+        resultDiv.style.display = 'block';
+        
+        let resultHTML = `
+            <div class="puzzle-result-card">
+                <div class="result-icon ${result.passed ? 'success' : 'failure'}">
+                    <i class="fas fa-${result.passed ? 'trophy' : 'times-circle'}"></i>
+                </div>
+                
+                <h3>${result.passed ? 'Congratulations!' : 'Keep Trying!'}</h3>
+                
+                <div class="result-score">${result.score.toFixed(1)}%</div>
+                
+                <div class="result-message">
+                    ${result.message}
+                </div>
+        `;
+        
+        if (result.results) {
+            resultHTML += `
+                <div class="result-details">
+                    <h5>Detailed Results:</h5>
+                    ${Object.entries(result.results).map(([key, item]) => {
+                        if (key.startsWith('blank_')) {
+                            // Handle fill blank results
+                            const blankIndex = key.split('_')[1];
+                            const blank = JSON.parse(this.currentPuzzle.puzzle_data).blanks[blankIndex];
+                            const correctAnswers = blank.answers || [];
+                            
+                            let partsHTML = '';
+                            if (item.parts) {
+                                partsHTML = Object.entries(item.parts).map(([partKey, part]) => {
+                                    const partNum = parseInt(partKey.split('_')[1]) + 1;
+                                    return `
+                                        <div class="result-item ${part.correct ? 'correct' : 'incorrect'}">
+                                            <i class="fas fa-${part.correct ? 'check-circle text-success' : 'times-circle text-danger'}"></i>
+                                            <div>
+                                                <strong>Blank ${blankIndex + 1}, Part ${partNum}:</strong> 
+                                                ${part.correct ? 'Correct' : 'Incorrect'}
+                                                <br>
+                                                <small>Your answer: "${part.student_answer || 'Empty'}"</small>
+                                                <br>
+                                                <small>Correct answer: "${part.correct_answer}"</small>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('');
+                            }
+                            
+                            return `
+                                <div class="result-item ${item.correct ? 'correct' : 'incorrect'}">
+                                    <i class="fas fa-${item.correct ? 'check-circle text-success' : 'times-circle text-danger'}"></i>
+                                    <div>
+                                        <strong>Sentence ${parseInt(blankIndex) + 1}:</strong> 
+                                        ${item.correct ? 'Correct' : 'Incorrect'}
+                                        ${partsHTML ? `<div class="mt-2">${partsHTML}</div>` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        } else if (key.startsWith('word_')) {
+                            // Handle word search results
+                            const wordIndex = key.split('_')[1];
+                            const words = JSON.parse(this.currentPuzzle.puzzle_data).words || [];
+                            const word = words[wordIndex] || 'Unknown';
+                            
+                            return `
+                                <div class="result-item ${item.correct ? 'correct' : 'incorrect'}">
+                                    <i class="fas fa-${item.correct ? 'check-circle text-success' : 'times-circle text-danger'}"></i>
+                                    <div>
+                                        <strong>Word: ${word.toUpperCase()}</strong> 
+                                        ${item.correct ? 'Found ✓' : 'Not found ✗'}
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            // Handle other question types
+                            return `
+                                <div class="result-item ${item.correct ? 'correct' : 'incorrect'}">
+                                    <i class="fas fa-${item.correct ? 'check-circle text-success' : 'times-circle text-danger'}"></i>
+                                    <div>
+                                        <strong>Question ${parseInt(key.replace('q', '')) + 1}:</strong> 
+                                        ${item.correct ? 'Correct' : 'Incorrect'}
+                                        ${item.correct_answer ? `<br><small>Correct answer: ${item.correct_answer}</small>` : ''}
+                                        ${item.student_answer ? `<br><small>Your answer: ${item.student_answer}</small>` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    }).join('')}
+                </div>
+            `;
+        }
+        
+        resultHTML += `
+            <div class="mt-4">
+                ${result.passed && result.next_page ? 
+                    '<button class="btn btn-success btn-lg" onclick="goToNextPage()">' +
+                    '<i class="fas fa-arrow-right"></i> Continue to Next Page</button>' : 
+                    result.passed ? 
+                    '<button class="btn btn-success btn-lg" onclick="closePuzzleModal()">' +
+                    '<i class="fas fa-check"></i> Continue Reading</button>' :
+                    '<button class="btn btn-primary" onclick="retryPuzzle()">' +
+                    '<i class="fas fa-redo"></i> Try Again</button>'
+                }
+            </div>
+        </div>`;
+        
+        resultDiv.innerHTML = resultHTML;
+    }
+    
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `story-notification alert alert-${type}`;
+        notification.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+            ${message}
+            <button type="button" class="close" onclick="this.parentElement.remove()">
+                <span>&times;</span>
+            </button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 3000);
+    }
+}
+
+// Global functions for puzzle interactions
+function handleWordSearchClick(cell, row, col) {
+    if (puzzleManager) {
+        const key = `${row},${col}`;
+        
+        if (!puzzleManager.selectedCells.has(key)) {
+            puzzleManager.selectedCells.add(key);
+            cell.classList.add('selected');
+        } else {
+            puzzleManager.selectedCells.delete(key);
+            cell.classList.remove('selected');
+        }
+        
+        // Auto-check if we have enough cells
+        if (puzzleManager.selectedCells.size >= 2) {
+            setTimeout(() => {
+                puzzleManager.checkSelectedWord();
+            }, 100);
+        }
+    }
+}
+
+function selectMCOption(element, questionIndex, value) {
+    if (puzzleManager) {
+        // Deselect all options in this question
+        const questionDiv = element.closest('.multiple-choice-question');
+        questionDiv.querySelectorAll('.mc-option').forEach(opt => {
+            opt.classList.remove('selected');
+        });
+        
+        // Select clicked option
+        element.classList.add('selected');
+        
+        // Update answer
+        puzzleManager.studentAnswers[`q${questionIndex}`] = value;
+        
+        // Update progress dot
+        const progressDot = document.getElementById(`progress-${questionIndex}`);
+        if (progressDot) {
+            progressDot.classList.add('completed');
+        }
+    }
+}
+
+function selectTFOption(element, statementIndex, value) {
+    if (puzzleManager) {
+        // Deselect all options in this statement
+        const questionDiv = element.closest('.true-false-question');
+        questionDiv.querySelectorAll('.tf-option').forEach(opt => {
+            opt.classList.remove('selected');
+        });
+        
+        // Select clicked option
+        element.classList.add('selected');
+        element.classList.add(value ? 'true-selected' : 'false-selected');
+        
+        // Update answer
+        puzzleManager.studentAnswers[`q${statementIndex}`] = value;
+    }
+}
+
+function updateBlankAnswer(index, partIndex, value) {
+    if (puzzleManager) {
+        puzzleManager.studentAnswers[`blank_${index}_${partIndex}`] = value.trim();
+    }
+}
+
+// Function to show puzzle modal
+function showPuzzleModal(puzzleData) {
+    if (!puzzleManager) {
+        puzzleManager = new PuzzleManager();
+    }
+    
+    puzzleManager.initPuzzle(puzzleData);
+    
+    const modal = document.getElementById('puzzleModal');
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+// Function to close puzzle modal
+function closePuzzleModal() {
+    const modal = document.getElementById('puzzleModal');
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+    
+    // Clear timer
+    if (puzzleManager && puzzleManager.timer) {
+        clearInterval(puzzleManager.timer);
+    }
+    
+    // Reload page to update progress
+    setTimeout(() => {
+        window.location.reload();
+    }, 500);
+}
+
+// Function to skip puzzle
+function skipPuzzle() {
+    if (!confirm('Skip this challenge? You can try it again later, but you\'ll need to complete it to continue.')) {
+        return;
+    }
+    
+    if (!puzzleManager || !puzzleManager.currentPuzzle) return;
+    
+    const puzzleId = puzzleManager.currentPuzzle.id;
+    
+    fetch('/api/skip_puzzle', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            puzzle_id: puzzleId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (puzzleManager) {
+                puzzleManager.showNotification('Challenge skipped. Moving to next page...', 'info');
+            }
+            setTimeout(() => {
+                if (data.next_page) {
+                    closePuzzleModal();
+                } else {
+                    window.location.reload();
+                }
+            }, 1500);
+        } else {
+            if (puzzleManager) {
+                puzzleManager.showNotification(data.error || 'Error skipping puzzle', 'error');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (puzzleManager) {
+            puzzleManager.showNotification('Network error. Please try again.', 'error');
+        }
+    });
+}
+
+// Function to submit puzzle
+function submitPuzzle() {
+    if (puzzleManager) {
+        puzzleManager.submitPuzzle();
+    }
+}
+
+// Function to go to next page
+function goToNextPage() {
+    closePuzzleModal();
+}
+
+// Function to retry puzzle
+function retryPuzzle() {
+    const resultDiv = document.getElementById('puzzle-result');
+    const container = document.getElementById('puzzle-container');
+    
+    if (resultDiv && container) {
+        resultDiv.style.display = 'none';
+        container.style.display = 'block';
+        
+        // Reset puzzle manager
+        if (puzzleManager) {
+            puzzleManager.studentAnswers = {};
+            puzzleManager.selectedCells.clear();
+            puzzleManager.timeLeft = puzzleManager.currentPuzzle.time_limit || 180;
+            puzzleManager.isSubmitting = false;
+            
+            // Clear selected cells in UI
+            document.querySelectorAll('.word-search-cell.selected').forEach(cell => {
+                cell.classList.remove('selected');
+            });
+            
+            // Re-attach event listeners
+            puzzleManager.attachEventListeners();
+            
+            // Enable submit button
+            const submitBtn = document.getElementById('submit-puzzle-btn');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-check"></i> Submit Answer';
+            }
+        }
+    }
+}
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    const storyData = JSON.parse(document.getElementById('story-data').textContent);
+    
+    if (storyData && storyData.id && storyData.pages && storyData.currentPage) {
+        window.storyViewer = new StoryViewer(
+            storyData.id,
+            storyData.pages,
+            storyData.currentPage
+        );
+    }
+    
+    // Check if puzzle needs to be shown
+    const puzzleData = JSON.parse(document.getElementById('puzzle-data').textContent);
+    
+    if (puzzleData.puzzle && (!puzzleData.student_puzzle_progress || !puzzleData.student_puzzle_progress.completed)) {
+        // Show puzzle status indicator
+        const puzzleStatus = document.getElementById('puzzle-status');
+        if (puzzleStatus) {
+            puzzleStatus.style.display = 'block';
+        }
+        
+        // Show puzzle modal after a short delay
+        setTimeout(() => {
+            showPuzzleModal(puzzleData.puzzle);
+        }, 1000);
+    }
+    
+    // Add global keyboard shortcuts for drawing panel
+    document.addEventListener('keydown', (e) => {
+        const isDrawingOpen = document.getElementById('fullscreen-drawing').classList.contains('active');
+        
+        if (isDrawingOpen && (e.ctrlKey || e.metaKey)) {
+            switch(e.key) {
+                case 'z':
+                case 'Z':
+                    e.preventDefault();
+                    if (drawingManagerInstance) {
+                        drawingManagerInstance.undo();
+                    }
+                    break;
+                case 'y':
+                case 'Y':
+                    e.preventDefault();
+                    if (drawingManagerInstance) {
+                        drawingManagerInstance.redo();
+                    }
+                    break;
+                case 's':
+                case 'S':
+                    e.preventDefault();
+                    if (drawingManagerInstance) {
+                        drawingManagerInstance.saveStudentDrawing();
+                    }
+                    break;
+            }
+        }
+        
+        if (e.key === 'Escape') {
+            if (isDrawingOpen) {
+                document.getElementById('fullscreen-drawing').classList.remove('active');
+                document.body.style.overflow = '';
+            }
+            
+            // Also close puzzle modal if open
+            const puzzleModal = document.getElementById('puzzleModal');
+            if (puzzleModal.style.display === 'flex') {
+                closePuzzleModal();
+            }
+        }
+    });
+    
+    // Close modal when clicking outside
+    window.addEventListener('click', function(event) {
+        const modal = document.getElementById('puzzleModal');
+        if (event.target === modal) {
+            closePuzzleModal();
+        }
+    });
+});
+</script>
+{% endblock %}

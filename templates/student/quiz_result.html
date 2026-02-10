@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Quiz Result - {{ quiz.title }} - Comic Learning App{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/student.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="quiz-result-container">
+    <div class="result-header {% if passed %}passed{% else %}failed{% endif %}">
+        <div class="result-icon">
+            {% if passed %}
+            <i class="fas fa-trophy"></i>
+            {% else %}
+            <i class="fas fa-times-circle"></i>
+            {% endif %}
+        </div>
+        <h1>Quiz Completed!</h1>
+        <p class="result-message">
+            {% if passed %}
+            Congratulations! You passed the quiz.
+            {% else %}
+            You need to score at least {{ quiz.passing_score }}% to pass.
+            {% endif %}
+        </p>
+    </div>
+    
+    <div class="result-summary">
+        <div class="summary-card">
+            <h3>Your Score</h3>
+            <div class="score-display">
+                <span class="score">{{ score|round(1) }}%</span>
+                <span class="score-details">{{ earned_points }}/{{ total_points }} points</span>
+            </div>
+            <div class="passing-info">
+                Passing Score: {{ quiz.passing_score }}%
+            </div>
+        </div>
+        
+        <!-- <div class="summary-card">
+            <h3>Class Statistics</h3>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-label">Total Attempts</span>
+                    <span class="stat-value">{{ stats.total_attempts or 0 }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Average Score</span>
+                    <span class="stat-value">{{ (stats.average_score or 0)|round(1) }}%</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Students Passed</span>
+                    <span class="stat-value">{{ stats.passed_count or 0 }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Students Failed</span>
+                    <span class="stat-value">{{ stats.failed_count or 0 }}</span>
+                </div>
+            </div> 
+        </div>-->
+    </div>
+    
+    <div class="detailed-results">
+        <h2><i class="fas fa-list-ol"></i> Detailed Results</h2>
+        
+        {% for question in questions %}
+        <div class="question-result">
+            <div class="question-result-header">
+                <h4>Question {{ loop.index }}</h4>
+                <span class="result-badge {% if answers[loop.index0].is_correct %}correct{% else %}incorrect{% endif %}">
+                    {% if answers[loop.index0].is_correct %}
+                    <i class="fas fa-check"></i> Correct
+                    {% else %}
+                    <i class="fas fa-times"></i> Incorrect
+                    {% endif %}
+                    ({{ question.points }} point{% if question.points != 1 %}s{% endif %})
+                </span>
+            </div>
+            
+            <div class="question-text">
+                <p>{{ question.question_text }}</p>
+            </div>
+            
+            <div class="answer-comparison">
+                <div class="answer-box {% if answers[loop.index0].is_correct %}correct{% else %}incorrect{% endif %}">
+                    <h5><i class="fas fa-user"></i> Your Answer</h5>
+                    <p>{{ answers[loop.index0].student_answer }}</p>
+                </div>
+                
+                {% if not answers[loop.index0].is_correct %}
+                <div class="answer-box correct">
+                    <h5><i class="fas fa-check-circle"></i> Correct Answer</h5>
+                    <p>{{ answers[loop.index0].correct_answer }}</p>
+                </div>
+                {% endif %}
+            </div>
+            
+            {% if question.explanation %}
+            <div class="explanation">
+                <h5><i class="fas fa-lightbulb"></i> Explanation</h5>
+                <p>{{ question.explanation }}</p>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    
+    <div class="result-actions">
+        <a href="{{ url_for('student_dashboard') }}" class="btn btn-primary">
+            <i class="fas fa-tachometer-alt"></i> Back to Dashboard
+        </a>
+        <a href="{{ url_for('view_story', story_id=quiz.story_id) }}" class="btn btn-outline">
+            <i class="fas fa-book"></i> Review Story
+        </a>
+    </div>
+</div>
+{% endblock %}

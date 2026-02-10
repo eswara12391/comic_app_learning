@@ -1,0 +1,1028 @@
+{% extends "base.html" %}
+
+{% block title %}Student Dashboard - Comic Learning App{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div class="welcome-section">
+        <h1>Welcome back, {{ student.first_name }}!</h1>
+        <div class="student-info">
+            <span class="info-item">
+                <i class="fas fa-graduation-cap"></i> {{ student.class_level }}
+            </span>
+            <span class="info-item">
+                <i class="fas fa-id-card"></i> Roll No: {{ student.roll_number }}
+            </span>
+            <span class="info-item">
+                <i class="fas fa-user"></i> {{ student.first_name }} {{ student.last_name }}
+            </span>
+        </div>
+    </div>
+    
+    {% if student.profile_photo %}
+    <div class="profile-photo">
+        <img src="{{ url_for('static', filename='uploads/profiles/' + student.profile_photo) }}" 
+             alt="Profile Photo">
+    </div>
+    {% endif %}
+</div>
+
+<div class="stats-cards">
+    <div class="stat-card">
+        <div class="stat-icon">
+            <i class="fas fa-book-open"></i>
+        </div>
+        <div class="stat-content">
+            <h3>{{ stories|length }}</h3>
+            <p>Assigned Stories</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stat-content">
+            <h3>{{ stories|selectattr('is_completed')|list|length }}</h3>
+            <p>Completed</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon">
+            <i class="fas fa-chart-line"></i>
+        </div>
+        <div class="stat-content">
+            <h3>{{ (stories|selectattr('is_completed')|list|length / stories|length * 100)|round|int if stories|length > 0 else 0 }}%</h3>
+            <p>Completion Rate</p>
+        </div>
+    </div>
+</div>
+
+<h2 class="section-title">Your Assigned Stories</h2>
+
+{% if stories %}
+<div class="stories-grid">
+    {% for story in stories %}
+    <div class="story-card">
+        <div class="story-card-header">
+            {% if story.cover_image %}
+            <img src="{{ url_for('static', filename='uploads/stories/' + story.cover_image) }}" 
+                 alt="{{ story.title }}" class="story-cover">
+            {% else %}
+            <div class="story-cover-placeholder">
+                <i class="fas fa-book"></i>
+            </div>
+            {% endif %}
+            
+            <div class="story-badge">
+                {% if story.is_completed %}
+                <span class="badge badge-success">Completed</span>
+                {% else %}
+                <span class="badge badge-info">In Progress</span>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="story-card-body">
+            <h3>{{ story.title }}</h3>
+            <p class="story-description">{{ story.description[:100] }}...</p>
+            
+            <div class="story-meta">
+                <span class="meta-item">
+                    <i class="fas fa-chalkboard-teacher"></i> 
+                    {{ story.teacher_first_name }} {{ story.teacher_last_name }}
+                </span>
+                <span class="meta-item">
+                    <i class="fas fa-file"></i> {{ story.total_pages or 0 }} pages
+                </span>
+            </div>
+            
+            {% if story.current_page and story.total_pages %}
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ (story.current_page / story.total_pages) * 100 }}%"></div>
+                </div>
+                <div class="progress-text">
+                    Page {{ story.current_page }} of {{ story.total_pages }}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="story-card-footer">
+            {% if story.is_completed %}
+                {% if story.has_quiz %}
+                <div class="story-actions">
+                    <a href="{{ url_for('take_quiz', story_id=story.id) }}" class="btn btn-primary">
+                        <i class="fas fa-question-circle"></i> Take Quiz
+                    </a>
+                    <a href="https://chat.openai.com/?q=Tell me more about {{ story.title|urlencode }} story and explain the concepts in detail" 
+                       target="_blank" 
+                       class="btn btn-outline-info">
+                        <i class="fas fa-robot"></i> Learn More
+                    </a>
+                </div>
+                {% else %}
+                <div class="story-actions">
+                    <span class="text-muted">No quiz available</span>
+                    <a href="https://chat.openai.com/?q=Explain the story '{{ story.title|urlencode }}' and its educational concepts" 
+                       target="_blank" 
+                       class="btn btn-outline-info">
+                        <i class="fas fa-robot"></i> Learn More
+                    </a>
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="story-actions">
+                    <a href="{{ url_for('view_story', story_id=story.id) }}" class="btn btn-primary">
+                        {% if story.current_page %}
+                        <i class="fas fa-play-circle"></i> Continue Reading
+                        {% else %}
+                        <i class="fas fa-play"></i> Start Reading
+                        {% endif %}
+                    </a>
+                    <a href="https://chat.openai.com/?q=I'm reading '{{ story.title|urlencode }}' story. Can you explain the main concepts?" 
+                       target="_blank" 
+                       class="btn btn-outline-info">
+                        <i class="fas fa-robot"></i> Learn More
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">
+        <i class="fas fa-book"></i>
+    </div>
+    <h3>No stories assigned yet</h3>
+    <p>Your teacher will assign stories to your class soon.</p>
+</div>
+{% endif %}
+
+<!-- Floating Chat Buttons -->
+<button class="chat-float-btn teacher-chat-btn" onclick="openTeacherChatModal()" title="Chat with Teacher">
+    <i class="fas fa-chalkboard-teacher"></i>
+    {% if teacher_unread_count and teacher_unread_count > 0 %}
+    <span class="chat-notification-badge" id="teacherNotificationBadge">{{ teacher_unread_count }}</span>
+    {% endif %}
+</button>
+
+<button class="chat-float-btn student-chat-btn" onclick="openStudentChatModal()" title="Chat with Classmates">
+    <i class="fas fa-user-friends"></i>
+    {% if student_unread_count and student_unread_count > 0 %}
+    <span class="chat-notification-badge" id="studentNotificationBadge">{{ student_unread_count }}</span>
+    {% endif %}
+</button>
+
+<!-- Teacher Chat Modal -->
+{% if conversation_id %}
+<div class="chat-overlay" id="teacherChatOverlay" onclick="closeTeacherChatModal()"></div>
+<div class="chat-modal" id="teacherChatModal">
+    <div class="chat-header">
+        <h3><i class="fas fa-chalkboard-teacher"></i> Chat with Teacher</h3>
+        <button class="close-chat" onclick="closeTeacherChatModal()">×</button>
+    </div>
+    
+    <div class="student-info-container" style="padding: 20px; background: #f8f9fa; border-bottom: 1px solid #eee;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="width: 40px; height: 40px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white;">
+                <i class="fas fa-chalkboard-teacher"></i>
+            </div>
+            <div>
+                <h4 style="margin: 0; font-size: 16px;">Your Teacher</h4>
+                <p style="margin: 0; font-size: 14px; color: #666;">Ask questions about your stories</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="chat-messages-container" id="teacherChatMessages">
+        <div class="no-messages" id="teacherNoMessages">
+            <i class="far fa-comment-alt"></i>
+            <p>No messages yet. Say hello to your teacher!</p>
+        </div>
+    </div>
+    
+    <div class="typing-indicator" id="teacherTypingIndicator">
+        Teacher is typing...
+    </div>
+    
+    <div class="chat-input-container">
+        <input type="text" id="teacherChatInput" placeholder="Type your question here..." 
+               onkeypress="handleTeacherKeyPress(event)">
+        <button onclick="sendTeacherMessage()">
+            <i class="fas fa-paper-plane"></i> Send
+        </button>
+    </div>
+</div>
+{% endif %}
+
+<!-- Student Chat Modal -->
+<div class="chat-overlay" id="studentChatOverlay" onclick="closeStudentChatModal()"></div>
+<div class="chat-modal" id="studentChatModal">
+    <div class="chat-header">
+        <h3><i class="fas fa-user-friends"></i> Chat with Classmates</h3>
+        <button class="close-chat" onclick="closeStudentChatModal()">×</button>
+    </div>
+    
+    <div class="student-select-container">
+        <select id="classmateChatSelect" onchange="switchClassmateConversation()">
+            <option value="">Select a classmate to chat with...</option>
+            <!-- Classmates will be loaded dynamically -->
+        </select>
+    </div>
+    
+    <div class="chat-messages-container" id="studentStudentChatBox">
+        <div class="no-messages" id="studentNoMessages">
+            <i class="far fa-comment-alt"></i>
+            <p>Select a classmate to start chatting</p>
+        </div>
+    </div>
+    
+    <div class="typing-indicator" id="studentTypingIndicator">
+        Classmate is typing...
+    </div>
+    
+    <div class="chat-input-container">
+        <input type="text" id="studentStudentInput" placeholder="Type your message here..." 
+               onkeypress="handleStudentToStudentKeyPress(event)">
+        <button onclick="sendStudentToStudentMessage()">
+            <i class="fas fa-paper-plane"></i> Send
+        </button>
+    </div>
+</div>
+
+<style>
+/* Floating Chat Buttons */
+.chat-float-btn {
+    position: fixed;
+    bottom: 30px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    color: white;
+    border: none;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.chat-float-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.3);
+}
+
+.chat-float-btn i {
+    font-size: 24px;
+}
+
+.teacher-chat-btn {
+    right: 30px;
+    bottom: 30px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.student-chat-btn {
+    right: 30px;
+    bottom: 105px;
+    background: linear-gradient(135deg, #4CAF50 0%, #8BC34A 100%);
+}
+
+.chat-notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #ff4757;
+    color: white;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* Chat Modal */
+.chat-modal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 500px;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    z-index: 1001;
+    overflow: hidden;
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -40%);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+}
+
+.chat-modal.active {
+    display: block;
+}
+
+.chat-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+}
+
+.chat-overlay.active {
+    display: block;
+}
+
+.chat-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.chat-header h3 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.close-chat {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.3s;
+}
+
+.close-chat:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Student Selection */
+.student-select-container {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.student-select-container select {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 14px;
+    background: #f8f9fa;
+    transition: all 0.3s;
+}
+
+.student-select-container select:focus {
+    outline: none;
+    border-color: #667eea;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Chat Messages */
+.chat-messages-container {
+    height: 400px;
+    overflow-y: auto;
+    padding: 20px;
+    background: #f8f9fa;
+}
+
+.chat-message {
+    margin-bottom: 20px;
+    display: flex;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.message-content {
+    max-width: 70%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    position: relative;
+    word-wrap: break-word;
+}
+
+.message-content.teacher {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-bottom-left-radius: 5px;
+}
+
+.message-content.student {
+    background: white;
+    color: #333;
+    border: 1px solid #e0e0e0;
+    margin-left: auto;
+    border-bottom-right-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.message-content.me {
+    background: linear-gradient(135deg, #4CAF50 0%, #8BC34A 100%);
+    color: white;
+    margin-left: auto;
+    border-bottom-right-radius: 5px;
+}
+
+.message-content.classmate {
+    background: white;
+    color: #333;
+    border: 1px solid #e0e0e0;
+    border-bottom-left-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.message-time {
+    font-size: 11px;
+    opacity: 0.7;
+    margin-top: 5px;
+    display: block;
+}
+
+/* Chat Input */
+.chat-input-container {
+    padding: 20px;
+    border-top: 1px solid #eee;
+    background: white;
+    display: flex;
+    gap: 10px;
+}
+
+.chat-input-container input {
+    flex: 1;
+    padding: 12px 20px;
+    border: 2px solid #e0e0e0;
+    border-radius: 25px;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.chat-input-container input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.chat-input-container button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 25px;
+    padding: 0 25px;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+}
+
+.chat-input-container button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+}
+
+/* No Messages State */
+.no-messages {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666;
+}
+
+.no-messages i {
+    font-size: 48px;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+/* Typing Indicator */
+.typing-indicator {
+    display: none;
+    padding: 10px 20px;
+    font-style: italic;
+    color: #666;
+    font-size: 13px;
+}
+
+.typing-indicator.active {
+    display: block;
+}
+
+/* Scrollbar Styling */
+.chat-messages-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.chat-messages-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.chat-messages-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.chat-messages-container::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Story Actions */
+.story-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.story-actions .btn {
+    flex: 1;
+    min-width: 120px;
+}
+
+.story-actions .btn-outline-info {
+    border-color: #17a2b8;
+    color: #17a2b8;
+}
+
+.story-actions .btn-outline-info:hover {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.story-actions .text-muted {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 120px;
+}
+
+@media (max-width: 576px) {
+    .story-actions {
+        flex-direction: column;
+    }
+    
+    .story-actions .btn {
+        width: 100%;
+    }
+    
+    .chat-input-container {
+        flex-direction: column;
+    }
+    
+    .chat-input-container input {
+        width: 100%;
+    }
+    
+    .teacher-chat-btn {
+        right: 20px;
+        bottom: 20px;
+    }
+    
+    .student-chat-btn {
+        right: 20px;
+        bottom: 95px;
+    }
+}
+</style>
+
+<script>
+// Define global variables
+const CURRENT_STUDENT_ID = {{ student.id }};
+{% if conversation_id %}
+const TEACHER_CONVERSATION_ID = {{ conversation_id }};
+{% endif %}
+let currentStudentConversation = null;
+let currentClassmateId = null;
+let isTeacherModalOpen = false;
+let isStudentModalOpen = false;
+let teacherRefreshInterval;
+let studentRefreshInterval;
+
+// ================= TEACHER CHAT FUNCTIONS =================
+{% if conversation_id %}
+function openTeacherChatModal() {
+    document.getElementById('teacherChatModal').classList.add('active');
+    document.getElementById('teacherChatOverlay').classList.add('active');
+    isTeacherModalOpen = true;
+    loadTeacherMessages();
+    
+    clearInterval(teacherRefreshInterval);
+    teacherRefreshInterval = setInterval(() => {
+        if (isTeacherModalOpen) {
+            loadTeacherMessages();
+        }
+    }, 2000);
+    
+    markTeacherMessagesAsRead();
+}
+
+function closeTeacherChatModal() {
+    document.getElementById('teacherChatModal').classList.remove('active');
+    document.getElementById('teacherChatOverlay').classList.remove('active');
+    isTeacherModalOpen = false;
+    clearInterval(teacherRefreshInterval);
+}
+
+function loadTeacherMessages() {
+    fetch(`/api/chat/messages/${TEACHER_CONVERSATION_ID}`)
+        .then(res => res.json())
+        .then(data => {
+            let box = document.getElementById('teacherChatMessages');
+            
+            if (data.length === 0) {
+                box.innerHTML = `
+                    <div class="no-messages" id="teacherNoMessages">
+                        <i class="far fa-comment-alt"></i>
+                        <p>No messages yet. Say hello to your teacher!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            data.forEach(m => {
+                const time = new Date(m.created_at).toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+                
+                html += `
+                    <div class="chat-message">
+                        <div class="message-content ${m.sender_type === 'student' ? 'student' : 'teacher'}">
+                            ${m.message}
+                            <span class="message-time">${time}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            box.innerHTML = html;
+            box.scrollTop = box.scrollHeight;
+        });
+}
+
+function sendTeacherMessage() {
+    let input = document.getElementById('teacherChatInput');
+    let msg = input.value.trim();
+    if (!msg) return;
+    
+    document.getElementById('teacherTypingIndicator').classList.add('active');
+    
+    fetch('/api/chat/send', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+            conversation_id: TEACHER_CONVERSATION_ID,
+            message: msg
+        })
+    }).then(() => {
+        input.value = '';
+        loadTeacherMessages();
+        document.getElementById('teacherTypingIndicator').classList.remove('active');
+    });
+}
+
+function handleTeacherKeyPress(e) {
+    if (e.key === 'Enter') {
+        sendTeacherMessage();
+    }
+}
+
+function markTeacherMessagesAsRead() {
+    fetch(`/api/chat/mark-read/${TEACHER_CONVERSATION_ID}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    }).then(() => {
+        updateTeacherNotificationBadge();
+    });
+}
+
+function updateTeacherNotificationBadge() {
+    fetch('/api/chat/unread-count')
+        .then(res => res.json())
+        .then(data => {
+            const badge = document.getElementById('teacherNotificationBadge');
+            if (data.count > 0) {
+                if (!badge) {
+                    const button = document.querySelector('.teacher-chat-btn');
+                    const newBadge = document.createElement('span');
+                    newBadge.className = 'chat-notification-badge';
+                    newBadge.id = 'teacherNotificationBadge';
+                    newBadge.textContent = data.count;
+                    button.appendChild(newBadge);
+                } else {
+                    badge.textContent = data.count;
+                }
+            } else if (badge) {
+                badge.remove();
+            }
+        });
+}
+{% endif %}
+
+// ================= STUDENT-TO-STUDENT CHAT FUNCTIONS =================
+function openStudentChatModal() {
+    document.getElementById('studentChatModal').classList.add('active');
+    document.getElementById('studentChatOverlay').classList.add('active');
+    isStudentModalOpen = true;
+    
+    // Load classmates
+    loadClassmates();
+    
+    clearInterval(studentRefreshInterval);
+    studentRefreshInterval = setInterval(() => {
+        if (isStudentModalOpen && currentStudentConversation) {
+            loadStudentStudentMessages(currentStudentConversation);
+        }
+    }, 2000);
+}
+
+function closeStudentChatModal() {
+    document.getElementById('studentChatModal').classList.remove('active');
+    document.getElementById('studentChatOverlay').classList.remove('active');
+    isStudentModalOpen = false;
+    clearInterval(studentRefreshInterval);
+}
+
+// ✅ STEP 3 — FRONTEND: Show unread per student in dropdown
+function loadClassmates() {
+    fetch('/api/student/classmates')
+        .then(res => res.json())
+        .then(data => {
+            const select = document.getElementById('classmateChatSelect');
+
+            // Clear old options
+            while (select.options.length > 1) {
+                select.remove(1);
+            }
+
+            data.forEach(classmate => {
+                const option = document.createElement('option');
+                option.value = classmate.id;
+
+                let label = `${classmate.first_name} ${classmate.last_name}`;
+
+                // ✅ SHOW UNREAD COUNT PER STUDENT
+                if (classmate.unread_count > 0) {
+                    label += ` 🔴 (${classmate.unread_count})`;
+                    // ✅ STEP 5 — OPTIONAL: Bold students with unread
+                    option.style.fontWeight = 'bold';
+                }
+
+                option.textContent = label;
+
+                if (classmate.conversation_id) {
+                    option.dataset.conversationId = classmate.conversation_id;
+                }
+
+                select.appendChild(option);
+            });
+        });
+}
+
+function switchClassmateConversation() {
+    const select = document.getElementById('classmateChatSelect');
+    const selectedOption = select.options[select.selectedIndex];
+    const classmateId = select.value;
+    
+    if (!classmateId) {
+        currentStudentConversation = null;
+        currentClassmateId = null;
+        document.getElementById('studentNoMessages').style.display = 'block';
+        document.getElementById('studentStudentChatBox').innerHTML = `
+            <div class="no-messages" id="studentNoMessages">
+                <i class="far fa-comment-alt"></i>
+                <p>Select a classmate to start chatting</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Check if conversation already exists
+    const existingConversationId = selectedOption.dataset.conversationId;
+    
+    if (existingConversationId) {
+        currentStudentConversation = parseInt(existingConversationId);
+        currentClassmateId = parseInt(classmateId);
+        document.getElementById('studentNoMessages').style.display = 'none';
+        loadStudentStudentMessages(currentStudentConversation);
+        markStudentMessagesAsRead(currentStudentConversation);
+    } else {
+        // Create new conversation
+        fetch(`/api/student-chat/start/${classmateId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.conversation_id) {
+                    currentStudentConversation = data.conversation_id;
+                    currentClassmateId = parseInt(classmateId);
+                    
+                    // Update the option with conversation_id
+                    selectedOption.dataset.conversationId = data.conversation_id;
+                    
+                    document.getElementById('studentNoMessages').style.display = 'none';
+                    loadStudentStudentMessages(currentStudentConversation);
+                } else {
+                    alert('Failed to start conversation. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error starting conversation:', error);
+                alert('Failed to start conversation. Please try again.');
+            });
+    }
+}
+
+function loadStudentStudentMessages(conversationId) {
+    fetch(`/api/student-chat/messages/${conversationId}`)
+        .then(r => r.json())
+        .then(data => {
+            let box = document.getElementById('studentStudentChatBox');
+            let html = '';
+            
+            if (data.length === 0) {
+                html = `
+                    <div class="no-messages">
+                        <i class="far fa-comment-alt"></i>
+                        <p>No messages yet. Start the conversation!</p>
+                    </div>
+                `;
+            } else {
+                data.forEach(m => {
+                    const time = m.created_at ? new Date(m.created_at).toLocaleTimeString([], { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                    }) : '';
+                    
+                    html += `
+                      <div class="chat-message">
+                        <div class="message-content ${m.sender_id == CURRENT_STUDENT_ID ? 'me' : 'classmate'}">
+                          ${m.message}
+                          <span class="message-time">${time}</span>
+                        </div>
+                      </div>
+                    `;
+                });
+            }
+            box.innerHTML = html;
+            box.scrollTop = box.scrollHeight;
+
+            // ✅ CRITICAL: mark messages as read when viewed
+            markStudentMessagesAsRead(conversationId);
+            
+            // ✅ STEP 4 — Highlight who sent unread messages (refresh the dropdown)
+            loadClassmates(); // Refresh the dropdown to update unread counts
+        })
+        .catch(error => {
+            console.error('Error loading messages:', error);
+        });
+}
+
+function sendStudentToStudentMessage() {
+    if (!currentStudentConversation) {
+        alert('Please select a classmate first');
+        return;
+    }
+    
+    const msg = document.getElementById('studentStudentInput').value.trim();
+    if (!msg) return;
+
+    // Show typing indicator
+    document.getElementById('studentTypingIndicator').classList.add('active');
+    
+    fetch('/api/student-chat/send', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+            conversation_id: currentStudentConversation,
+            message: msg
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('studentStudentInput').value = '';
+            loadStudentStudentMessages(currentStudentConversation);
+        } else {
+            alert('Error: ' + (data.error || 'Failed to send message'));
+        }
+        document.getElementById('studentTypingIndicator').classList.remove('active');
+    })
+    .catch(error => {
+        console.error('Error sending message:', error);
+        alert('Failed to send message. Please try again.');
+        document.getElementById('studentTypingIndicator').classList.remove('active');
+    });
+}
+
+function handleStudentToStudentKeyPress(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        sendStudentToStudentMessage();
+    }
+}
+
+function markStudentMessagesAsRead(conversationId) {
+    fetch(`/api/student-chat/mark-read/${conversationId}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    }).then(() => {
+        updateStudentNotificationBadge();
+        // ✅ STEP 4 — Refresh dropdown to update unread counts
+        loadClassmates();
+    });
+}
+
+function updateStudentNotificationBadge() {
+    fetch('/api/student-chat/unread-count')
+        .then(res => res.json())
+        .then(data => {
+            const badge = document.getElementById('studentNotificationBadge');
+            if (data.success && data.count > 0) {
+                if (!badge) {
+                    const button = document.querySelector('.student-chat-btn');
+                    const newBadge = document.createElement('span');
+                    newBadge.className = 'chat-notification-badge';
+                    newBadge.id = 'studentNotificationBadge';
+                    newBadge.textContent = data.count;
+                    button.appendChild(newBadge);
+                } else {
+                    badge.textContent = data.count;
+                    badge.style.display = 'flex';
+                }
+            } else if (badge) {
+                badge.style.display = 'none';
+            }
+        });
+}
+
+// ================= INITIALIZE ON PAGE LOAD =================
+document.addEventListener('DOMContentLoaded', function() {
+    // Update notification badges
+    {% if conversation_id %}
+    updateTeacherNotificationBadge();
+    {% endif %}
+    updateStudentNotificationBadge();
+    
+    // Set up intervals to update badges
+    setInterval(() => {
+        {% if conversation_id %}
+        if (!isTeacherModalOpen) {
+            updateTeacherNotificationBadge();
+        }
+        {% endif %}
+        
+        if (!isStudentModalOpen) {
+            updateStudentNotificationBadge();
+        }
+    }, 10000); // Check every 10 seconds
+});
+</script>
+{% endblock %}
