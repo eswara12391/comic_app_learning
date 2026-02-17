@@ -28,6 +28,8 @@ from PIL import Image as PILImage
 import random
 import re
 from functools import wraps
+import logging
+import traceback
 
 
 # # Import the StudentDrawing model
@@ -37,10 +39,27 @@ from functools import wraps
 app = Flask(__name__)
 app.config.from_object(config['development'])
 
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 # Initialize MySQL
 mysql = MySQL(app)
+
+# Test database connection
+def test_db_connection():
+    try:
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT 1")
+        cur.close()
+        logger.info("Database connection successful")
+    except Exception as e:
+        logger.error(f"Database connection failed: {str(e)}")
+        raise
 
 
 # Ensure upload directories exist
@@ -140,34 +159,44 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-        
-        cur = mysql.connection.cursor()
-        cur.execute("SELECT * FROM users WHERE email = %s", (email,))
-        user = cur.fetchone()
-        cur.close()
-        
-        if user and check_password_hash(user['password_hash'], password):
-           # session.clear() # ✅ Clear old session
-            session['user_id'] = user['id']
-            session['email'] = user['email']
-            session['user_type'] = user['user_type']
+        try:
+            logger.info("Login attempt")
+            email = request.form.get('email')
+            password = request.form.get('password')
             
-            # Update last login
+            logger.debug(f"Login attempt for email: {email}")
+            
             cur = mysql.connection.cursor()
-            cur.execute("UPDATE users SET last_login = NOW() WHERE id = %s", (user['id'],))
-            mysql.connection.commit()
+            cur.execute("SELECT * FROM users WHERE email = %s", (email,))
+            user = cur.fetchone()
             cur.close()
             
-            flash(f'Welcome back!', 'success')
-            
-            if user['user_type'] == 'teacher':
-                return redirect(url_for('teacher_dashboard'))
+            if user and check_password_hash(user['password_hash'], password):
+               # session.clear() # ✅ Clear old session
+                session['user_id'] = user['id']
+                session['email'] = user['email']
+                session['user_type'] = user['user_type']
+                
+                # Update last login
+                cur = mysql.connection.cursor()
+                cur.execute("UPDATE users SET last_login = NOW() WHERE id = %s", (user['id'],))
+                mysql.connection.commit()
+                cur.close()
+                
+                logger.info(f"User logged in successfully: {email}")
+                flash(f'Welcome back!', 'success')
+                
+                if user['user_type'] == 'teacher':
+                    return redirect(url_for('teacher_dashboard'))
+                else:
+                    return redirect(url_for('student_dashboard'))
             else:
-                return redirect(url_for('student_dashboard'))
-        else:
-            flash('Invalid email or password', 'danger')
+                logger.warning(f"Failed login attempt for email: {email}")
+                flash('Invalid email or password', 'danger')
+        except Exception as e:
+            logger.error(f"Login error: {str(e)}")
+            logger.error(traceback.format_exc())
+            flash('An error occurred during login', 'danger')
     
     return render_template('auth/login.html')
 
@@ -175,6 +204,7 @@ def login():
 def register_student():
     if request.method == 'POST':
         try:
+            logger.info("Student registration attempt")
             # User account details
             email = request.form.get('email')
             password = request.form.get('password')
@@ -236,10 +266,13 @@ def register_student():
             mysql.connection.commit()
             cur.close()
             
+            logger.info(f"Student registered successfully: {email}")
             flash('Registration successful! Please login.', 'success')
             return redirect(url_for('login'))
             
         except Exception as e:
+            logger.error(f"Student registration error: {str(e)}")
+            logger.error(traceback.format_exc())
             mysql.connection.rollback()
             flash(f'Registration failed: {str(e)}', 'danger')
             return redirect(url_for('register_student'))
@@ -250,6 +283,7 @@ def register_student():
 def register_teacher():
     if request.method == 'POST':
         try:
+            logger.info("Teacher registration attempt")
             # User account details
             email = request.form.get('email')
             password = request.form.get('password')
@@ -301,10 +335,13 @@ def register_teacher():
             mysql.connection.commit()
             cur.close()
             
+            logger.info(f"Teacher registered successfully: {email}")
             flash('Registration successful! Please login.', 'success')
             return redirect(url_for('login'))
             
         except Exception as e:
+            logger.error(f"Teacher registration error: {str(e)}")
+            logger.error(traceback.format_exc())
             mysql.connection.rollback()
             flash(f'Registration failed: {str(e)}', 'danger')
             return redirect(url_for('register_teacher'))
@@ -5397,7 +5434,21 @@ def page_not_found(e):
 
 @app.errorhandler(500)
 def internal_server_error(e):
+    logger.error(f"500 Internal Server Error: {str(e)}")
+    logger.error(traceback.format_exc())
     return render_template('500.html'), 500
+
+@app.before_request
+def before_request():
+    """Log all requests"""
+    logger.debug(f"{request.method} {request.path}")
+
+@app.teardown_appcontext
+def teardown_db(exception):
+    """Log any database errors"""
+    if exception:
+        logger.error(f"Exception during request: {str(exception)}")
+        logger.error(traceback.format_exc())
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

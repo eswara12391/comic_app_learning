@@ -12,7 +12,7 @@ class Config:
     MYSQL_PASSWORD = ''  # Empty password for XAMPP default
     MYSQL_DB = 'comic_learning_db'
     MYSQL_PORT = 3308  # Default MySQL port
-    MYSQL_CURSORCLASS = 'DictCursor'
+    MYSQL_CURSORCLASS = 'DictCursor'  # Use DictCursor class name
     
     # Session configuration
     PERMANENT_SESSION_LIFETIME = timedelta(days=7)
