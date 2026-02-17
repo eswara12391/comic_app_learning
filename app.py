@@ -149,6 +149,7 @@ def login():
         cur.close()
         
         if user and check_password_hash(user['password_hash'], password):
+           # session.clear() # ✅ Clear old session
             session['user_id'] = user['id']
             session['email'] = user['email']
             session['user_type'] = user['user_type']
@@ -2351,6 +2352,7 @@ def student_dashboard():
         teacher = cur.fetchone()
 
         conversation_id = None
+        #unread_count = 0  # ✅ IMPORTANT FIX
         if teacher:
             conversation_id = get_or_create_conversation(
                 teacher['teacher_id'], 
