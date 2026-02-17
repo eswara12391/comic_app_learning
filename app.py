@@ -3,6 +3,7 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 from flask_mysqldb import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from werkzeug.exceptions import BadRequest, HTTPException
 import os
 import json
 from datetime import datetime, timedelta
@@ -11,8 +12,6 @@ from functools import wraps
 from config import config
 import time
 import math
-from flask import jsonify, request, session
-from werkzeug.exceptions import BadRequest
 import io
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -27,7 +26,6 @@ import tempfile
 from PIL import Image as PILImage
 import random
 import re
-from functools import wraps
 import logging
 import traceback
 
@@ -136,6 +134,32 @@ def check_db_connection():
     except Exception as e:
         logger.error(f"Database connection check failed: {str(e)}")
         return False
+
+def api_error_handler(f):
+    """Decorator for API endpoints to handle errors consistently"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        cur = None
+        try:
+            return f(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"API Error in {f.__name__}: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            
+            # Try to close cursor if it exists
+            try:
+                if cur:
+                    cur.close()
+            except:
+                pass
+            
+            # Always return JSON with error
+            return jsonify({
+                'success': False,
+                'error': 'An error occurred processing your request',
+                'detail': str(e) if app.debug else None
+            }), 500
+    return decorated_function
 
 # Authentication decorators
 def login_required(f):
@@ -513,17 +537,27 @@ def logout():
 # ================================= Student Drawing =========================================================
 
 @app.route('/api/save_student_drawing', methods=['POST'])
+@api_error_handler
 def save_student_drawing():
     """Save student's private drawing to database"""
+    cur = None
     try:
+        logger.info("Save student drawing request received")
+        
         data = request.get_json()
+        if not data:
+            logger.warning("No JSON data received")
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
+        
         story_id = data.get('story_id')
         drawing_data = data.get('drawing_data')
         
         if not all([story_id, drawing_data]):
+            logger.warning(f"Missing fields: story_id={story_id}, has_drawing_data={bool(drawing_data)}")
             return jsonify({'success': False, 'error': 'Missing required fields'}), 400
         
         if 'user_id' not in session:
+            logger.warning("User not logged in")
             return jsonify({'success': False, 'error': 'Not logged in'}), 401
         
         cur = mysql.connection.cursor()
@@ -531,7 +565,7 @@ def save_student_drawing():
         student = cur.fetchone()
         
         if not student:
-            cur.close()
+            logger.warning(f"Student not found for user_id: {session['user_id']}")
             return jsonify({'success': False, 'error': 'Student not found'}), 404
             
         student_id = student['id']
@@ -547,30 +581,45 @@ def save_student_drawing():
             cur.execute("UPDATE student_drawings SET drawing_data = %s, updated_at = %s WHERE id = %s",
                        (drawing_data, current_time, existing['id']))
             message = 'Drawing updated'
+            logger.info(f"Updated drawing for student {student_id}, story {story_id}")
         else:
             cur.execute("INSERT INTO student_drawings (story_id, student_id, drawing_data, created_at, updated_at) VALUES (%s, %s, %s, %s, %s)",
                        (story_id, student_id, drawing_data, current_time, current_time))
             message = 'Drawing saved'
+            logger.info(f"Saved new drawing for student {student_id}, story {story_id}")
         
         mysql.connection.commit()
-        cur.close()
+        logger.info(f"Drawing operation successful: {message}")
         
         return jsonify({'success': True, 'message': message})
         
     except Exception as e:
-        print(f"Error saving drawing: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        logger.error(f"Error saving drawing: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Failed to save drawing'}), 500
+    finally:
+        if cur:
+            try:
+                cur.close()
+            except:
+                pass
 
 @app.route('/api/get_student_drawing', methods=['GET'])
+@api_error_handler
 def get_student_drawing():
     """Get student's private drawing from database"""
+    cur = None
     try:
+        logger.info("Get student drawing request received")
+        
         story_id = request.args.get('story_id', type=int)
         
         if not story_id:
+            logger.warning("Missing story_id parameter")
             return jsonify({'success': False, 'error': 'Missing story_id'}), 400
         
         if 'user_id' not in session:
+            logger.warning("User not logged in")
             return jsonify({'success': False, 'error': 'Not logged in'}), 401
         
         cur = mysql.connection.cursor()
@@ -578,7 +627,7 @@ def get_student_drawing():
         student = cur.fetchone()
         
         if not student:
-            cur.close()
+            logger.warning(f"Student not found for user_id: {session['user_id']}")
             return jsonify({'success': False, 'error': 'Student not found'}), 404
             
         student_id = student['id']
@@ -586,29 +635,47 @@ def get_student_drawing():
         cur.execute("SELECT drawing_data FROM student_drawings WHERE story_id = %s AND student_id = %s", 
                    (story_id, student_id))
         drawing = cur.fetchone()
-        cur.close()
         
         if drawing:
+            logger.info(f"Retrieved drawing for student {student_id}, story {story_id}")
             return jsonify({'success': True, 'drawing_data': drawing['drawing_data']})
         else:
+            logger.info(f"No drawing found for student {student_id}, story {story_id}")
             return jsonify({'success': True, 'drawing_data': None})
             
     except Exception as e:
-        print(f"Error getting drawing: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        logger.error(f"Error getting drawing: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Failed to retrieve drawing'}), 500
+    finally:
+        if cur:
+            try:
+                cur.close()
+            except:
+                pass
 
 @app.route('/api/clear_student_drawing', methods=['POST'])
+@api_error_handler
 def clear_student_drawing():
     """Clear student's drawing (save empty canvas)"""
+    cur = None
     try:
+        logger.info("Clear student drawing request received")
+        
         data = request.get_json()
+        if not data:
+            logger.warning("No JSON data received")
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
+        
         story_id = data.get('story_id')
         
         if not story_id:
+            logger.warning("Missing story_id parameter")
             return jsonify({'success': False, 'error': 'Missing story_id'}), 400
         
         # Check if user is logged in
         if 'user_id' not in session:
+            logger.warning("User not logged in")
             return jsonify({'success': False, 'error': 'Not logged in'}), 401
         
         cur = mysql.connection.cursor()
@@ -618,7 +685,7 @@ def clear_student_drawing():
         student = cur.fetchone()
         
         if not student:
-            cur.close()
+            logger.warning(f"Student not found for user_id: {session['user_id']}")
             return jsonify({'success': False, 'error': 'Student not found'}), 404
             
         student_id = student['id']
@@ -652,7 +719,7 @@ def clear_student_drawing():
             """, (story_id, student_id, blank_canvas_data, current_time, current_time))
         
         mysql.connection.commit()
-        cur.close()
+        logger.info(f"Drawing cleared successfully for story_id: {story_id}, student_id: {student_id}")
         
         return jsonify({
             'success': True,
@@ -660,11 +727,19 @@ def clear_student_drawing():
         })
         
     except Exception as e:
-        if 'cur' in locals():
+        logger.error(f"Error clearing drawing: {str(e)}")
+        logger.error(traceback.format_exc())
+        try:
             mysql.connection.rollback()
-            cur.close()
-        print(f"Error clearing drawing: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        except:
+            pass
+        return jsonify({'success': False, 'error': 'Failed to clear drawing'}), 500
+    finally:
+        if cur:
+            try:
+                cur.close()
+            except:
+                pass
     
 
 
@@ -722,17 +797,32 @@ def get_or_create_conversation(teacher_id, student_id):
 #     return jsonify({'success': True})
 @app.route('/api/chat/send', methods=['POST'])
 @login_required
+@api_error_handler
 def send_chat_message():
-    data = request.json
-    conversation_id = data['conversation_id']
-    message = data['message']
-
-    user_type = session['user_type']
-    user_id = session['user_id']
-
-    cur = mysql.connection.cursor()
-
+    """Send a chat message between student and teacher"""
+    cur = None
     try:
+        logger.info("Chat message send request received")
+        
+        data = request.json
+        if not data:
+            logger.warning("No JSON data received")
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
+        
+        conversation_id = data.get('conversation_id')
+        message = data.get('message')
+        
+        if not conversation_id or not message:
+            logger.warning(f"Missing parameters - conversation_id: {conversation_id}, message: {bool(message)}")
+            return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
+
+        user_type = session['user_type']
+        user_id = session['user_id']
+        
+        logger.info(f"Sending message from {user_type} (user_id: {user_id}) to conversation {conversation_id}")
+
+        cur = mysql.connection.cursor()
+
         # Validate conversation ownership
         if user_type == 'teacher':
             teacher_id = get_current_teacher_id()
@@ -747,6 +837,9 @@ def send_chat_message():
                 WHERE s.user_id = %s
             """, (user_id,))
             row = cur.fetchone()
+            if not row:
+                logger.warning(f"Student not found for user_id: {user_id}")
+                return jsonify({'success': False, 'error': 'Student not found'}), 404
             student_id = row['student_id']
 
             cur.execute("""
@@ -755,6 +848,7 @@ def send_chat_message():
             """, (conversation_id, student_id))
 
         if not cur.fetchone():
+            logger.warning(f"Invalid conversation {conversation_id} for {user_type} {user_id}")
             return jsonify({'success': False, 'error': 'Invalid conversation'}), 403
 
         cur.execute("""
@@ -764,16 +858,33 @@ def send_chat_message():
         """, (conversation_id, user_type, user_id, message))
 
         mysql.connection.commit()
+        logger.info(f"Chat message sent successfully to conversation {conversation_id}")
         return jsonify({'success': True})
 
+    except Exception as e:
+        logger.error(f"Error sending chat message: {str(e)}")
+        logger.error(traceback.format_exc())
+        try:
+            mysql.connection.rollback()
+        except:
+            pass
+        return jsonify({'success': False, 'error': 'Failed to send message'}), 500
     finally:
-        cur.close()
+        if cur:
+            try:
+                cur.close()
+            except:
+                pass
 
 @app.route('/api/chat/messages/<int:conversation_id>')
 @login_required
+@api_error_handler
 def get_chat_messages(conversation_id):
+    """Get all messages for a chat conversation"""
     cur = None
     try:
+        logger.info(f"Fetching chat messages for conversation {conversation_id}")
+        
         cur = mysql.connection.cursor()
         
         # Simple query without DATE_FORMAT to avoid % issues
@@ -785,6 +896,7 @@ def get_chat_messages(conversation_id):
         """, (conversation_id,))
         
         messages = cur.fetchall()
+        logger.info(f"Retrieved {len(messages)} messages for conversation {conversation_id}")
         
         # Format messages for JSON response
         result = []
@@ -798,11 +910,15 @@ def get_chat_messages(conversation_id):
         return jsonify(result)
         
     except Exception as e:
-        print(f"Error fetching chat messages: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error fetching chat messages for conversation {conversation_id}: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': 'Failed to fetch messages'}), 500
     finally:
         if cur:
-            cur.close()
+            try:
+                cur.close()
+            except:
+                pass
 
 # @app.route('/api/chat/unread-count')
 # @login_required
@@ -841,14 +957,20 @@ def get_chat_messages(conversation_id):
 #         cur.close()
 @app.route('/api/chat/unread-count')
 @login_required
+@api_error_handler
 def get_unread_count():
-    cur = mysql.connection.cursor()
-
+    """Get the count of unread chat messages"""
+    cur = None
     try:
+        logger.info(f"Fetching unread chat count for {session['user_type']} {session['user_id']}")
+        
+        cur = mysql.connection.cursor()
+
         if session['user_type'] == 'teacher':
             teacher_id = get_current_teacher_id()
 
             if not teacher_id:
+                logger.warning(f"Teacher not found for user_id: {session['user_id']}")
                 return jsonify({'count': 0, 'success': True})
 
             cur.execute("""
@@ -871,6 +993,7 @@ def get_unread_count():
             student_id = row['student_id'] if row else None
 
             if not student_id:
+                logger.warning(f"Student not found for user_id: {session['user_id']}")
                 return jsonify({'count': 0, 'success': True})
 
             cur.execute("""
@@ -884,15 +1007,20 @@ def get_unread_count():
 
         result = cur.fetchone()
         count = result['count'] if result and result['count'] else 0
+        logger.info(f"Unread message count for {session['user_type']}: {count}")
 
         return jsonify({'count': count, 'success': True})
 
     except Exception as e:
-        print(f"Error getting unread count: {str(e)}")
-        return jsonify({'count': 0, 'success': False, 'error': str(e)})
-
+        logger.error(f"Error getting unread count: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'count': 0, 'success': False, 'error': 'Failed to get unread count'}), 500
     finally:
-        cur.close()
+        if cur:
+            try:
+                cur.close()
+            except:
+                pass
 
 # @app.route('/api/chat/mark-read/<int:conversation_id>', methods=['POST'])
 # @login_required
@@ -927,14 +1055,20 @@ def get_unread_count():
 #         cur.close()
 @app.route('/api/chat/mark-read/<int:conversation_id>', methods=['POST'])
 @login_required
+@api_error_handler
 def mark_messages_as_read(conversation_id):
-    cur = mysql.connection.cursor()
-
+    """Mark all messages in a conversation as read"""
+    cur = None
     try:
+        logger.info(f"Marking messages as read in conversation {conversation_id} by {session['user_type']} {session['user_id']}")
+        
+        cur = mysql.connection.cursor()
+
         if session['user_type'] == 'teacher':
             teacher_id = get_current_teacher_id()
 
             if not teacher_id:
+                logger.warning(f"Teacher not found for user_id: {session['user_id']}")
                 return jsonify({'success': True})
 
             cur.execute("""
@@ -955,6 +1089,7 @@ def mark_messages_as_read(conversation_id):
             student_id = row['student_id'] if row else None
 
             if not student_id:
+                logger.warning(f"Student not found for user_id: {session['user_id']}")
                 return jsonify({'success': True})
 
             cur.execute("""
@@ -966,14 +1101,23 @@ def mark_messages_as_read(conversation_id):
             """, (conversation_id,))
 
         mysql.connection.commit()
+        logger.info(f"Messages marked as read successfully in conversation {conversation_id}")
         return jsonify({'success': True})
 
     except Exception as e:
-        print(f"Error marking messages as read: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)})
-
+        logger.error(f"Error marking messages as read in conversation {conversation_id}: {str(e)}")
+        logger.error(traceback.format_exc())
+        try:
+            mysql.connection.rollback()
+        except:
+            pass
+        return jsonify({'success': False, 'error': 'Failed to mark messages as read'}), 500
     finally:
-        cur.close()
+        if cur:
+            try:
+                cur.close()
+            except:
+                pass
 
 @app.route('/api/chat/teacher/unread-by-student')
 @login_required
@@ -1068,199 +1212,322 @@ def get_current_student_id():
 #     return jsonify(classmates)
 @app.route('/api/student/classmates')
 @student_required
+@api_error_handler
 def get_student_classmates():
-    cur = mysql.connection.cursor()
+    """Get list of classmates for a student"""
+    cur = None
+    try:
+        logger.info(f"Fetching classmates for student user_id: {session['user_id']}")
+        
+        cur = mysql.connection.cursor()
 
-    student_id = get_current_student_id()
-    if not student_id:
-        cur.close()
-        return jsonify([])
+        student_id = get_current_student_id()
+        if not student_id:
+            logger.warning(f"Student not found for user_id: {session['user_id']}")
+            return jsonify([])
 
-    # Get my class
-    cur.execute("SELECT class_level FROM students WHERE id = %s", (student_id,))
-    me = cur.fetchone()
-    if not me:
-        cur.close()
-        return jsonify([])
+        # Get my class
+        cur.execute("SELECT class_level FROM students WHERE id = %s", (student_id,))
+        me = cur.fetchone()
+        if not me:
+            logger.warning(f"Student data not found for student_id: {student_id}")
+            return jsonify([])
 
-    my_class = me['class_level']
+        my_class = me['class_level']
+        logger.info(f"Student's class level: {my_class}")
 
-    # Get classmates + conversation + unread count
-    cur.execute("""
-        SELECT 
-            s.id,
-            s.first_name,
-            s.last_name,
-            sc.id AS conversation_id,
+        # Get classmates + conversation + unread count
+        cur.execute("""
+            SELECT 
+                s.id,
+                s.first_name,
+                s.last_name,
+                sc.id AS conversation_id,
 
-            -- Unread count from this classmate
-            SUM(
-                CASE 
-                    WHEN sm.is_read = FALSE 
-                     AND sm.sender_id = s.id 
-                    THEN 1 ELSE 0 
-                END
-            ) AS unread_count
+                -- Unread count from this classmate
+                SUM(
+                    CASE 
+                        WHEN sm.is_read = FALSE 
+                         AND sm.sender_id = s.id 
+                        THEN 1 ELSE 0 
+                    END
+                ) AS unread_count
 
-        FROM students s
+            FROM students s
 
-        LEFT JOIN student_conversations sc
-          ON (
-                (sc.student1_id = %s AND sc.student2_id = s.id)
-             OR (sc.student2_id = %s AND sc.student1_id = s.id)
-          )
+            LEFT JOIN student_conversations sc
+              ON (
+                    (sc.student1_id = %s AND sc.student2_id = s.id)
+                 OR (sc.student2_id = %s AND sc.student1_id = s.id)
+              )
 
-        LEFT JOIN student_messages sm
-          ON sm.conversation_id = sc.id
+            LEFT JOIN student_messages sm
+              ON sm.conversation_id = sc.id
 
-        WHERE LOWER(TRIM(s.class_level)) = LOWER(TRIM(%s))
-          AND s.id != %s
+            WHERE LOWER(TRIM(s.class_level)) = LOWER(TRIM(%s))
+              AND s.id != %s
 
-        GROUP BY s.id, sc.id
-        ORDER BY s.first_name
-    """, (student_id, student_id, my_class, student_id))
+            GROUP BY s.id, sc.id
+            ORDER BY s.first_name
+        """, (student_id, student_id, my_class, student_id))
 
-    classmates = cur.fetchall()
-    cur.close()
+        classmates = cur.fetchall()
+        logger.info(f"Found {len(classmates)} classmates for student_id: {student_id}")
 
-    # Convert None to 0
-    for c in classmates:
-        c['unread_count'] = int(c['unread_count'] or 0)
+        # Convert None to 0
+        for c in classmates:
+            c['unread_count'] = int(c['unread_count'] or 0)
 
-    return jsonify(classmates)
+        return jsonify(classmates)
+
+    except Exception as e:
+        logger.error(f"Error fetching classmates: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify([]), 500
+    finally:
+        if cur:
+            try:
+                cur.close()
+            except:
+                pass
 
 @app.route('/api/student-chat/start/<int:classmate_id>')
 @student_required
+@api_error_handler
 def start_student_chat(classmate_id):
-    cur = mysql.connection.cursor()
+    """Start or get existing conversation with a classmate"""
+    cur = None
+    try:
+        logger.info(f"Starting/Getting student chat with classmate {classmate_id}")
+        
+        cur = mysql.connection.cursor()
 
-    student_id = get_current_student_id()
-    if not student_id:
-        cur.close()
-        return jsonify({'success': False})
+        student_id = get_current_student_id()
+        if not student_id:
+            logger.warning(f"Student not found for user_id: {session['user_id']}")
+            return jsonify({'success': False, 'error': 'Student not found'}), 404
 
-    s1 = min(student_id, classmate_id)
-    s2 = max(student_id, classmate_id)
+        s1 = min(student_id, classmate_id)
+        s2 = max(student_id, classmate_id)
 
-    cur.execute("""
-        SELECT id FROM student_conversations
-        WHERE student1_id = %s AND student2_id = %s
-    """, (s1, s2))
-
-    convo = cur.fetchone()
-
-    if convo:
-        conversation_id = convo['id']
-    else:
         cur.execute("""
-            INSERT INTO student_conversations (student1_id, student2_id)
-            VALUES (%s, %s)
+            SELECT id FROM student_conversations
+            WHERE student1_id = %s AND student2_id = %s
         """, (s1, s2))
-        mysql.connection.commit()
-        conversation_id = cur.lastrowid
 
-    cur.close()
+        convo = cur.fetchone()
 
-    return jsonify({"success": True, "conversation_id": conversation_id})
+        if convo:
+            conversation_id = convo['id']
+            logger.info(f"Existing conversation found: {conversation_id}")
+        else:
+            cur.execute("""
+                INSERT INTO student_conversations (student1_id, student2_id)
+                VALUES (%s, %s)
+            """, (s1, s2))
+            mysql.connection.commit()
+            conversation_id = cur.lastrowid
+            logger.info(f"New conversation created: {conversation_id}")
+
+        return jsonify({"success": True, "conversation_id": conversation_id})
+
+    except Exception as e:
+        logger.error(f"Error starting student chat: {str(e)}")
+        logger.error(traceback.format_exc())
+        try:
+            mysql.connection.rollback()
+        except:
+            pass
+        return jsonify({'success': False, 'error': 'Failed to start chat'}), 500
+    finally:
+        if cur:
+            try:
+                cur.close()
+            except:
+                pass
 
 @app.route('/api/student-chat/send', methods=['POST'])
 @student_required
+@api_error_handler
 def send_student_chat_message():
-    data = request.json
-    conversation_id = data.get('conversation_id')
-    message = data.get('message')
+    """Send a message to a classmate"""
+    cur = None
+    try:
+        logger.info(f"Sending student chat message from user_id: {session['user_id']}")
+        
+        data = request.json
+        if not data:
+            logger.warning("No JSON data received")
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
 
-    if not conversation_id or not message:
-        return jsonify({'success': False}), 400
+        conversation_id = data.get('conversation_id')
+        message = data.get('message')
 
-    student_id = get_current_student_id()
-    if not student_id:
-        return jsonify({'success': False}), 400
+        if not conversation_id or not message:
+            logger.warning(f"Missing parameters - conversation_id: {conversation_id}, message: {bool(message)}")
+            return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
 
-    cur = mysql.connection.cursor()
-    cur.execute("""
-        INSERT INTO student_messages (conversation_id, sender_id, message, is_read)
-        VALUES (%s, %s, %s, FALSE)
-    """, (conversation_id, student_id, message))
+        student_id = get_current_student_id()
+        if not student_id:
+            logger.warning(f"Student not found for user_id: {session['user_id']}")
+            return jsonify({'success': False, 'error': 'Student not found'}), 404
 
-    mysql.connection.commit()
-    cur.close()
+        logger.info(f"Student {student_id} sending message to conversation {conversation_id}")
 
-    return jsonify({'success': True})
+        cur = mysql.connection.cursor()
+        cur.execute("""
+            INSERT INTO student_messages (conversation_id, sender_id, message, is_read)
+            VALUES (%s, %s, %s, FALSE)
+        """, (conversation_id, student_id, message))
+
+        mysql.connection.commit()
+        logger.info(f"Message sent successfully to conversation {conversation_id}")
+
+        return jsonify({'success': True})
+
+    except Exception as e:
+        logger.error(f"Error sending student chat message: {str(e)}")
+        logger.error(traceback.format_exc())
+        try:
+            mysql.connection.rollback()
+        except:
+            pass
+        return jsonify({'success': False, 'error': 'Failed to send message'}), 500
+    finally:
+        if cur:
+            try:
+                cur.close()
+            except:
+                pass
 
 @app.route('/api/student-chat/messages/<int:conversation_id>')
 @student_required
+@api_error_handler
 def get_student_chat_messages(conversation_id):
-    cur = mysql.connection.cursor()
-    cur.execute("""
-        SELECT id, sender_id, message, created_at, is_read
-        FROM student_messages
-        WHERE conversation_id = %s
-        ORDER BY created_at ASC
-    """, (conversation_id,))
+    """Get all messages in a student conversation"""
+    cur = None
+    try:
+        logger.info(f"Fetching student chat messages for conversation {conversation_id}")
+        
+        cur = mysql.connection.cursor()
+        cur.execute("""
+            SELECT id, sender_id, message, created_at, is_read
+            FROM student_messages
+            WHERE conversation_id = %s
+            ORDER BY created_at ASC
+        """, (conversation_id,))
 
-    messages = cur.fetchall()
-    cur.close()
+        messages = cur.fetchall()
+        logger.info(f"Retrieved {len(messages)} messages for conversation {conversation_id}")
 
-    # Convert datetime to string
-    formatted_messages = []
-    for m in messages:
-        formatted_messages.append({
-            'id': m['id'],
-            'sender_id': m['sender_id'],
-            'message': m['message'],
-            'created_at': m['created_at'].strftime('%Y-%m-%d %H:%M:%S'),  # <-- format
-            'is_read': bool(m['is_read'])
-        })
+        # Convert datetime to string
+        formatted_messages = []
+        for m in messages:
+            formatted_messages.append({
+                'id': m['id'],
+                'sender_id': m['sender_id'],
+                'message': m['message'],
+                'created_at': m['created_at'].strftime('%Y-%m-%d %H:%M:%S'),
+                'is_read': bool(m['is_read'])
+            })
 
-    return jsonify(formatted_messages)
+        return jsonify(formatted_messages)
+
+    except Exception as e:
+        logger.error(f"Error fetching student chat messages: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify([]), 500
+    finally:
+        if cur:
+            try:
+                cur.close()
+            except:
+                pass
 
 @app.route('/api/student-chat/unread-count')
 @student_required
+@api_error_handler
 def get_student_chat_unread_count():
-    cur = mysql.connection.cursor()
+    """Get unread message count for student chats"""
+    cur = None
+    try:
+        logger.info(f"Fetching student chat unread count for user_id: {session['user_id']}")
+        
+        cur = mysql.connection.cursor()
 
-    student_id = get_current_student_id()
-    if not student_id:
-        cur.close()
-        return jsonify({'count': 0})
+        student_id = get_current_student_id()
+        if not student_id:
+            logger.warning(f"Student not found for user_id: {session['user_id']}")
+            return jsonify({'count': 0}), 404
 
-    cur.execute("""
-        SELECT COUNT(*) as count
-        FROM student_messages sm
-        JOIN student_conversations sc ON sm.conversation_id = sc.id
-        WHERE (sc.student1_id = %s OR sc.student2_id = %s)
-          AND sm.sender_id != %s
-          AND sm.is_read = FALSE
-    """, (student_id, student_id, student_id))
+        cur.execute("""
+            SELECT COUNT(*) as count
+            FROM student_messages sm
+            JOIN student_conversations sc ON sm.conversation_id = sc.id
+            WHERE (sc.student1_id = %s OR sc.student2_id = %s)
+              AND sm.sender_id != %s
+              AND sm.is_read = FALSE
+        """, (student_id, student_id, student_id))
 
-    result = cur.fetchone()
-    count = result['count'] if result and result['count'] else 0
+        result = cur.fetchone()
+        count = result['count'] if result and result['count'] else 0
+        logger.info(f"Unread student chat count: {count}")
 
-    cur.close()
-    return jsonify({'count': count, 'success': True})
+        return jsonify({'count': count, 'success': True})
+
+    except Exception as e:
+        logger.error(f"Error getting student chat unread count: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'count': 0, 'success': False}), 500
+    finally:
+        if cur:
+            try:
+                cur.close()
+            except:
+                pass
 
 @app.route('/api/student-chat/mark-read/<int:conversation_id>', methods=['POST'])
 @student_required
+@api_error_handler
 def mark_student_messages_read(conversation_id):
-    cur = mysql.connection.cursor()
+    """Mark all student chat messages as read"""
+    cur = None
+    try:
+        logger.info(f"Marking student chat messages as read in conversation {conversation_id}")
+        
+        cur = mysql.connection.cursor()
 
-    student_id = get_current_student_id()
-    if not student_id:
-        cur.close()
-        return jsonify({'success': False})
+        student_id = get_current_student_id()
+        if not student_id:
+            logger.warning(f"Student not found for user_id: {session['user_id']}")
+            return jsonify({'success': False, 'error': 'Student not found'}), 404
 
-    cur.execute("""
-        UPDATE student_messages
-        SET is_read = TRUE
-        WHERE conversation_id = %s
-          AND sender_id != %s
-    """, (conversation_id, student_id))
+        cur.execute("""
+            UPDATE student_messages
+            SET is_read = TRUE
+            WHERE conversation_id = %s
+              AND sender_id != %s
+        """, (conversation_id, student_id))
 
-    mysql.connection.commit()
-    cur.close()
+        mysql.connection.commit()
+        logger.info(f"Messages marked as read in conversation {conversation_id}")
 
-    return jsonify({'success': True})
+        return jsonify({'success': True})
+
+    except Exception as e:
+        logger.error(f"Error marking student messages as read: {str(e)}")
+        logger.error(traceback.format_exc())
+        try:
+            mysql.connection.rollback()
+        except:
+            pass
+        return jsonify({'success': False, 'error': 'Failed to mark as read'}), 500
+    finally:
+        if cur:
+            try:
+                cur.close()
+            except:
+                pass
 
 
 ##================================== puzzel =================================================
@@ -1591,16 +1858,28 @@ def generate_puzzle_from_text(text_content, puzzle_type='word_search'):
 
 @app.route('/api/submit_puzzle_answer', methods=['POST'])
 @student_required
+@api_error_handler
 def submit_puzzle_answer():
+    """Submit and grade a puzzle answer"""
+    cur = None
     try:
+        logger.info(f"Puzzle answer submission from student user_id: {session['user_id']}")
+        
         data = request.json
+        if not data:
+            logger.warning("No JSON data received")
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
+            
         puzzle_id = data.get('puzzle_id')
         answers = data.get('answers', {})
 
         if not puzzle_id:
-            return jsonify({'success': False, 'error': 'Puzzle ID required'})
+            logger.warning("Missing puzzle_id parameter")
+            return jsonify({'success': False, 'error': 'Puzzle ID required'}), 400
 
         cur = mysql.connection.cursor()
+        
+        logger.info(f"Processing puzzle {puzzle_id}")
 
         # Get puzzle data
         cur.execute("""
@@ -1612,13 +1891,19 @@ def submit_puzzle_answer():
         puzzle = cur.fetchone()
 
         if not puzzle:
-            return jsonify({'success': False, 'error': 'Puzzle not found'})
+            logger.warning(f"Puzzle not found: {puzzle_id}")
+            return jsonify({'success': False, 'error': 'Puzzle not found'}), 404
 
         # Get student ID
         cur.execute("SELECT id FROM students WHERE user_id = %s", (session['user_id'],))
         student = cur.fetchone()
+        if not student:
+            logger.warning(f"Student not found for user_id: {session['user_id']}")
+            return jsonify({'success': False, 'error': 'Student not found'}), 404
         student_id = student['id']
-
+        
+        logger.info(f"Student {student_id} submitting puzzle {puzzle_id}")
+        
         puzzle_data = json.loads(puzzle['puzzle_data'])
         puzzle_type = puzzle['puzzle_type']
 
@@ -1626,8 +1911,8 @@ def submit_puzzle_answer():
         total_questions = 0
         results = {}
 
-        print("DEBUG USER ANSWERS:", answers)
-        print("DEBUG PUZZLE DATA:", puzzle_data)
+        logger.debug(f"User answers: {answers}")
+        logger.debug(f"Puzzle data: {puzzle_data}")
 
         # ---------------- MULTIPLE CHOICE ----------------
         if puzzle_type == 'multiple_choice':
@@ -1683,8 +1968,8 @@ def submit_puzzle_answer():
             blanks = puzzle_data.get('blanks', [])
             total_questions = len(blanks)  # Each blank sentence is one question
             
-            print(f"DEBUG: Processing {len(blanks)} blanks")
-            print(f"DEBUG: Received answers: {answers}")
+            logger.debug(f"Processing {len(blanks)} blanks")
+            logger.debug(f"Received answers: {answers}")
 
             for i, blank in enumerate(blanks):
                 sentence = blank.get('sentence', '')
@@ -1692,8 +1977,8 @@ def submit_puzzle_answer():
                 
                 # Count how many blanks in this sentence
                 blank_count = sentence.count('_____')
-                print(f"DEBUG: Blank {i} has {blank_count} blanks in sentence: {sentence}")
-                print(f"DEBUG: Correct answers for blank {i}: {correct_answers}")
+                logger.debug(f"Blank {i} has {blank_count} blanks in sentence: {sentence}")
+                logger.debug(f"Correct answers for blank {i}: {correct_answers}")
                 
                 # Check if correct_answers is a list or single string
                 if isinstance(correct_answers, str):
@@ -1722,7 +2007,7 @@ def submit_puzzle_answer():
                         correct_answer_raw = correct_answers[0] if correct_answers else ""
                         correct_answer = str(correct_answer_raw).strip().lower()
                     
-                    print(f"DEBUG: Blank {i}, part {j}: User='{user_answer}', Correct='{correct_answer}'")
+                    logger.debug(f"Blank {i}, part {j}: User='{user_answer}', Correct='{correct_answer}'")
                     
                     # Check if answer is correct (exact match)
                     is_correct = user_answer == correct_answer
@@ -1740,9 +2025,9 @@ def submit_puzzle_answer():
                 # If all parts are correct, give point for this blank
                 if blank_correct:
                     score += 1
-                    print(f"DEBUG: Blank {i} is CORRECT")
+                    logger.debug(f"Blank {i} is CORRECT")
                 else:
-                    print(f"DEBUG: Blank {i} is INCORRECT")
+                    logger.debug(f"Blank {i} is INCORRECT")
                 
                 # Store overall blank result
                 results[f'blank_{i}'] = {
@@ -1774,8 +2059,8 @@ def submit_puzzle_answer():
                         'student_answer': 'Not found'
                     }
 
-        # ---------------- CALCULATE SCORE ----------------
-        print(f"DEBUG: Score={score}, Total={total_questions}")
+        # ----------------CALCULATE SCORE ----------------
+        logger.debug(f"Score={score}, Total={total_questions}")
         percentage = (score / total_questions) * 100 if total_questions > 0 else 0
         required_score = puzzle.get('required_score', 70)
         passed = percentage >= required_score
@@ -1854,14 +2139,19 @@ def submit_puzzle_answer():
         })
 
     except Exception as e:
-        print("ERROR submit_puzzle_answer:", e)
-        return jsonify({'success': False, 'error': str(e)})
-
-    finally:
+        logger.error(f"Error submitting puzzle answer for puzzle {data.get('puzzle_id') if data else 'unknown'}: {str(e)}")
+        logger.error(traceback.format_exc())
         try:
-            cur.close()
+            mysql.connection.rollback()
         except:
             pass
+        return jsonify({'success': False, 'error': 'Failed to submit puzzle answer'}), 500
+    finally:
+        if cur:
+            try:
+                cur.close()
+            except:
+                pass
 
 # main 
 # API to submit puzzle answer
@@ -2072,17 +2362,34 @@ def submit_puzzle_answer():
 # API to skip puzzle (limited attempts)
 @app.route('/api/skip_puzzle', methods=['POST'])
 @student_required
+@api_error_handler
 def skip_puzzle():
+    """Skip a puzzle and move to the next page"""
+    cur = None
     try:
+        logger.info(f"Skipping puzzle for student user_id: {session['user_id']}")
+        
         data = request.json
+        if not data:
+            logger.warning("No JSON data received")
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
+            
         puzzle_id = data.get('puzzle_id')
+        if not puzzle_id:
+            logger.warning("Missing puzzle_id parameter")
+            return jsonify({'success': False, 'error': 'Puzzle ID required'}), 400
         
         cur = mysql.connection.cursor()
         
         # Get student ID
         cur.execute("SELECT id FROM students WHERE user_id = %s", (session['user_id'],))
         student = cur.fetchone()
+        if not student:
+            logger.warning(f"Student not found for user_id: {session['user_id']}")
+            return jsonify({'success': False, 'error': 'Student not found'}), 404
         student_id = student['id']
+        
+        logger.info(f"Student {student_id} skipping puzzle {puzzle_id}")
         
         # Get story page info
         cur.execute("""
@@ -2095,10 +2402,12 @@ def skip_puzzle():
         page_info = cur.fetchone()
         
         if not page_info:
-            return jsonify({'success': False, 'error': 'Page not found'})
+            logger.warning(f"Page not found for puzzle {puzzle_id}")
+            return jsonify({'success': False, 'error': 'Page not found'}), 404
         
         story_id = page_info['story_id']
         current_page = page_info['page_number']
+        logger.info(f"Puzzle is on page {current_page} of story {story_id}")
         
         # Get total pages
         cur.execute("SELECT COUNT(*) as total FROM story_pages WHERE story_id = %s", (story_id,))
@@ -2106,6 +2415,7 @@ def skip_puzzle():
         
         # Check if this is the last page
         is_last_page = current_page >= total_pages
+        logger.info(f"Total pages: {total_pages}, is_last_page: {is_last_page}")
         
         if not is_last_page:
             # Update to next page
@@ -2115,6 +2425,7 @@ def skip_puzzle():
                 WHERE student_id = %s AND story_id = %s
             """, (current_page + 1, student_id, story_id))
             mysql.connection.commit()
+            logger.info(f"Updated student progress to page {current_page + 1}")
             
             # Mark puzzle as skipped (not completed)
             cur.execute("""
@@ -2124,15 +2435,28 @@ def skip_puzzle():
                 ON DUPLICATE KEY UPDATE attempts = attempts + 1
             """, (student_id, puzzle_id))
             mysql.connection.commit()
+            logger.info(f"Puzzle marked as skipped")
         
         return jsonify({
             'success': True,
             'next_page': not is_last_page,
-            'message': 'Puzzle skipped. Moving to next page.'
+            'message': 'Puzzle skipped. Moving to next page.' if not is_last_page else 'Puzzle skipped.'
         })
         
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        logger.error(f"Error skipping puzzle: {str(e)}")
+        logger.error(traceback.format_exc())
+        try:
+            mysql.connection.rollback()
+        except:
+            pass
+        return jsonify({'success': False, 'error': 'Failed to skip puzzle'}), 500
+    finally:
+        if cur:
+            try:
+                cur.close()
+            except:
+                pass
 
 # @app.route('/api/create_puzzle', methods=['POST'])
 # @teacher_required
@@ -2186,9 +2510,17 @@ def skip_puzzle():
 #         return jsonify({'success': False, 'error': str(e)})
 @app.route('/api/create_puzzle', methods=['POST'])
 @teacher_required
+@api_error_handler
 def create_puzzle():
+    """Create a puzzle for a story page"""
+    cur = None
     try:
+        logger.info(f"Creating puzzle from teacher user_id: {session['user_id']}")
+        
         data = request.get_json()
+        if not data:
+            logger.warning("No JSON data received")
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
 
         page_id = data.get('page_id')
         puzzle_type = data.get('puzzle_type')
@@ -2197,7 +2529,8 @@ def create_puzzle():
         required_score = int(data.get('required_score', 70))
 
         if not page_id or not puzzle_type:
-            return jsonify({'success': False, 'error': 'Missing page or puzzle type'})
+            logger.warning(f"Missing parameters - page_id: {page_id}, puzzle_type: {puzzle_type}")
+            return jsonify({'success': False, 'error': 'Missing page or puzzle type'}), 400
 
         cur = mysql.connection.cursor()
 
@@ -2206,18 +2539,19 @@ def create_puzzle():
         page = cur.fetchone()
 
         if not page:
-            cur.close()
-            return jsonify({'success': False, 'error': 'Page not found'})
+            logger.warning(f"Page not found: {page_id}")
+            return jsonify({'success': False, 'error': 'Page not found'}), 404
 
         # 2️⃣ Get puzzle type ID
         cur.execute("SELECT id FROM puzzle_types WHERE name = %s", (puzzle_type,))
         puzzle_type_data = cur.fetchone()
 
         if not puzzle_type_data:
-            cur.close()
-            return jsonify({'success': False, 'error': 'Invalid puzzle type'})
+            logger.warning(f"Invalid puzzle type: {puzzle_type}")
+            return jsonify({'success': False, 'error': 'Invalid puzzle type'}), 400
 
         puzzle_type_id = puzzle_type_data['id']
+        logger.info(f"Creating {puzzle_type} puzzle for page {page_id}")
 
         # 3️⃣ Generate puzzle from text
         puzzle_data_obj = generate_puzzle_from_text(page['text_content'], puzzle_type)
@@ -2234,6 +2568,7 @@ def create_puzzle():
 
         if existing:
             # 5️⃣ Update existing puzzle
+            logger.info(f"Updating existing puzzle {existing['id']} for page {page_id}")
             cur.execute("""
                 UPDATE story_page_puzzles
                 SET puzzle_type_id = %s,
@@ -2252,6 +2587,7 @@ def create_puzzle():
             ))
         else:
             # 6️⃣ Insert new puzzle
+            logger.info(f"Creating new puzzle for page {page_id}")
             cur.execute("""
                 INSERT INTO story_page_puzzles
                 (story_page_id, puzzle_type_id, puzzle_data, difficulty, time_limit, required_score)
@@ -2267,20 +2603,43 @@ def create_puzzle():
 
         # 7️⃣ COMMIT (VERY IMPORTANT)
         mysql.connection.commit()
-        cur.close()
+        logger.info(f"Puzzle created/updated successfully for page {page_id}")
 
         return jsonify({'success': True})
 
     except Exception as e:
-        print("CREATE PUZZLE ERROR:", str(e))
-        return jsonify({'success': False, 'error': str(e)})
+        logger.error(f"Error creating puzzle: {str(e)}")
+        logger.error(traceback.format_exc())
+        try:
+            mysql.connection.rollback()
+        except:
+            pass
+        return jsonify({'success': False, 'error': 'Failed to create puzzle'}), 500
+    finally:
+        if cur:
+            try:
+                cur.close()
+            except:
+                pass
     
 @app.route('/api/auto_generate_puzzle', methods=['POST'])
 @teacher_required
+@api_error_handler
 def auto_generate_puzzle():
+    """Auto-generate a puzzle for a story page"""
+    cur = None
     try:
+        logger.info(f"Auto-generating puzzle from teacher user_id: {session['user_id']}")
+        
         data = request.json
+        if not data:
+            logger.warning("No JSON data received")
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
+            
         page_id = data.get('page_id')
+        if not page_id:
+            logger.warning("Missing page_id parameter")
+            return jsonify({'success': False, 'error': 'Page ID required'}), 400
         
         cur = mysql.connection.cursor()
         
@@ -2289,7 +2648,10 @@ def auto_generate_puzzle():
         page = cur.fetchone()
         
         if not page:
-            return jsonify({'success': False, 'error': 'Page not found'})
+            logger.warning(f"Page not found: {page_id}")
+            return jsonify({'success': False, 'error': 'Page not found'}), 404
+        
+        logger.info(f"Generating puzzle for page {page_id}")
         
         # Choose random puzzle type based on text length
         text_length = len(page['text_content'])
@@ -2302,13 +2664,15 @@ def auto_generate_puzzle():
             puzzle_types = ['true_false', 'multiple_choice']
         
         selected_type = random.choice(puzzle_types)
+        logger.info(f"Selected puzzle type: {selected_type}")
         
         # Get puzzle type ID
         cur.execute("SELECT id FROM puzzle_types WHERE name = %s", (selected_type,))
         puzzle_type_data = cur.fetchone()
         
         if not puzzle_type_data:
-            return jsonify({'success': False, 'error': 'Invalid puzzle type'})
+            logger.warning(f"Invalid puzzle type: {selected_type}")
+            return jsonify({'success': False, 'error': 'Invalid puzzle type'}), 400
         
         puzzle_type_id = puzzle_type_data['id']
         
@@ -2328,20 +2692,46 @@ def auto_generate_puzzle():
         """, (page_id, puzzle_type_id, json.dumps(puzzle_data), 'medium', 180, 70))
         
         mysql.connection.commit()
-        cur.close()
+        logger.info(f"Auto-generated {selected_type} puzzle successfully for page {page_id}")
         
         return jsonify({'success': True, 'message': f'Puzzle ({selected_type}) generated successfully'})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        logger.error(f"Error auto-generating puzzle: {str(e)}")
+        logger.error(traceback.format_exc())
+        try:
+            mysql.connection.rollback()
+        except:
+            pass
+        return jsonify({'success': False, 'error': 'Failed to generate puzzle'}), 500
+    finally:
+        if cur:
+            try:
+                cur.close()
+            except:
+                pass
 
 @app.route('/api/delete_puzzle', methods=['POST'])
 @teacher_required
+@api_error_handler
 def delete_puzzle():
+    """Delete a puzzle from a story page"""
+    cur = None
     try:
+        logger.info(f"Deleting puzzle from teacher user_id: {session['user_id']}")
+        
         data = request.json
+        if not data:
+            logger.warning("No JSON data received")
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
+            
         puzzle_id = data.get('puzzle_id')
+        if not puzzle_id:
+            logger.warning("Missing puzzle_id parameter")
+            return jsonify({'success': False, 'error': 'Puzzle ID required'}), 400
         
         cur = mysql.connection.cursor()
+        
+        logger.info(f"Deleting puzzle {puzzle_id}")
         
         # Delete puzzle
         cur.execute("DELETE FROM story_page_puzzles WHERE id = %s", (puzzle_id,))
@@ -2350,11 +2740,23 @@ def delete_puzzle():
         cur.execute("DELETE FROM student_puzzle_progress WHERE puzzle_id = %s", (puzzle_id,))
         
         mysql.connection.commit()
-        cur.close()
+        logger.info(f"Puzzle {puzzle_id} deleted successfully")
         
         return jsonify({'success': True, 'message': 'Puzzle deleted successfully'})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        logger.error(f"Error deleting puzzle: {str(e)}")
+        logger.error(traceback.format_exc())
+        try:
+            mysql.connection.rollback()
+        except:
+            pass
+        return jsonify({'success': False, 'error': 'Failed to delete puzzle'}), 500
+    finally:
+        if cur:
+            try:
+                cur.close()
+            except:
+                pass
 
 @app.route('/teacher/preview_puzzle/<int:puzzle_id>')
 @teacher_required
@@ -5605,6 +6007,18 @@ def teardown_db(exception):
     if exception:
         logger.error(f"Exception during request: {str(exception)}")
         logger.error(traceback.format_exc())
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Global exception handler for any unhandled errors"""
+    logger.error(f"Unhandled exception: {type(e).__name__}: {str(e)}")
+    logger.error(traceback.format_exc())
+    
+    # Return appropriate error response
+    if isinstance(e, HTTPException):
+        return jsonify({'error': e.description, 'code': e.code}), e.code
+    else:
+        return jsonify({'error': 'An internal error occurred', 'detail': str(e) if app.debug else None}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
