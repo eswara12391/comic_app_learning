@@ -99,21 +99,43 @@ def save_file(file, folder, file_type='image'):
 
 def get_student_id():
     if 'user_id' in session and session.get('user_type') == 'student':
-        cur = mysql.connection.cursor()
-        cur.execute("SELECT id FROM students WHERE user_id = %s", (session['user_id'],))
-        student = cur.fetchone()
-        cur.close()
-        return student['id'] if student else None
+        try:
+            cur = mysql.connection.cursor()
+            cur.execute("SELECT id FROM students WHERE user_id = %s", (session['user_id'],))
+            student = cur.fetchone()
+            cur.close()
+            return student['id'] if student else None
+        except Exception as e:
+            logger.error(f"Error getting student ID: {str(e)}")
+            return None
     return None
 
 def get_teacher_id():
     if 'user_id' in session and session.get('user_type') == 'teacher':
-        cur = mysql.connection.cursor()
-        cur.execute("SELECT id FROM teachers WHERE user_id = %s", (session['user_id'],))
-        teacher = cur.fetchone()
-        cur.close()
-        return teacher['id'] if teacher else None
+        try:
+            cur = mysql.connection.cursor()
+            cur.execute("SELECT id FROM teachers WHERE user_id = %s", (session['user_id'],))
+            teacher = cur.fetchone()
+            cur.close()
+            return teacher['id'] if teacher else None
+        except Exception as e:
+            logger.error(f"Error getting teacher ID: {str(e)}")
+            return None
     return None
+
+def check_db_connection():
+    """Check if database connection is alive, reconnect if needed"""
+    try:
+        if mysql.connection is None:
+            logger.warning("Database connection is None, reinitializing")
+            return False
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT 1")
+        cur.close()
+        return True
+    except Exception as e:
+        logger.error(f"Database connection check failed: {str(e)}")
+        return False
 
 # Authentication decorators
 def login_required(f):
@@ -159,91 +181,155 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
+        cur = None
         try:
-            logger.info("Login attempt")
-            email = request.form.get('email')
-            password = request.form.get('password')
+            logger.info("Login attempt started")
+            
+            # Get form data and validate
+            email = request.form.get('email', '').strip()
+            password = request.form.get('password', '')
+            
+            if not email or not password:
+                flash('Email and password are required', 'danger')
+                return render_template('auth/login.html')
             
             logger.debug(f"Login attempt for email: {email}")
             
-            cur = mysql.connection.cursor()
-            cur.execute("SELECT * FROM users WHERE email = %s", (email,))
-            user = cur.fetchone()
-            cur.close()
+            # Get database cursor and query user
+            try:
+                cur = mysql.connection.cursor()
+                cur.execute("SELECT id, email, password_hash, user_type, is_active FROM users WHERE email = %s", (email,))
+                user = cur.fetchone()
+            finally:
+                if cur:
+                    cur.close()
             
-            if user and check_password_hash(user['password_hash'], password):
-               # session.clear() # ✅ Clear old session
-                session['user_id'] = user['id']
-                session['email'] = user['email']
-                session['user_type'] = user['user_type']
-                
-                # Update last login
+            # Validate user exists and password matches
+            if user is None:
+                logger.warning(f"Login failed: User not found - {email}")
+                flash('Invalid email or password', 'danger')
+                return render_template('auth/login.html')
+            
+            if not user.get('is_active'):
+                logger.warning(f"Login failed: User account inactive - {email}")
+                flash('Your account has been deactivated', 'danger')
+                return render_template('auth/login.html')
+            
+            if not check_password_hash(user['password_hash'], password):
+                logger.warning(f"Login failed: Invalid password - {email}")
+                flash('Invalid email or password', 'danger')
+                return render_template('auth/login.html')
+            
+            # Set session data
+            session.permanent = True
+            session['user_id'] = user['id']
+            session['email'] = user['email']
+            session['user_type'] = user['user_type']
+            session.modified = True
+            
+            logger.info(f"Session created for user: {email}, Type: {user['user_type']}")
+            
+            # Update last login timestamp
+            cur = None
+            try:
                 cur = mysql.connection.cursor()
                 cur.execute("UPDATE users SET last_login = NOW() WHERE id = %s", (user['id'],))
                 mysql.connection.commit()
-                cur.close()
-                
-                logger.info(f"User logged in successfully: {email}")
-                flash(f'Welcome back!', 'success')
-                
-                if user['user_type'] == 'teacher':
-                    return redirect(url_for('teacher_dashboard'))
-                else:
-                    return redirect(url_for('student_dashboard'))
+                logger.info(f"Last login timestamp updated for user: {email}")
+            except Exception as e:
+                logger.warning(f"Failed to update last login time: {str(e)}")
+                mysql.connection.rollback()
+            finally:
+                if cur:
+                    cur.close()
+            
+            flash(f'Welcome back, {user["email"]}!', 'success')
+            logger.info(f"User logged in successfully: {email} (Type: {user['user_type']})")
+            
+            # Redirect based on user type
+            if user['user_type'] == 'teacher':
+                return redirect(url_for('teacher_dashboard'))
             else:
-                logger.warning(f"Failed login attempt for email: {email}")
-                flash('Invalid email or password', 'danger')
+                return redirect(url_for('student_dashboard'))
+                
         except Exception as e:
-            logger.error(f"Login error: {str(e)}")
+            logger.error(f"Unexpected login error: {str(e)}")
             logger.error(traceback.format_exc())
-            flash('An error occurred during login', 'danger')
+            flash('An error occurred during login. Please try again.', 'danger')
+            return render_template('auth/login.html')
+        finally:
+            # Ensure cursor is always closed
+            if cur:
+                cur.close()
     
     return render_template('auth/login.html')
 
 @app.route('/register/student', methods=['GET', 'POST'])
 def register_student():
     if request.method == 'POST':
+        cur = None
         try:
             logger.info("Student registration attempt")
+            
             # User account details
-            email = request.form.get('email')
-            password = request.form.get('password')
-            confirm_password = request.form.get('confirm_password')
+            email = request.form.get('email', '').strip()
+            password = request.form.get('password', '')
+            confirm_password = request.form.get('confirm_password', '')
+            
+            # Validate input
+            if not email or not password:
+                flash('Email and password are required', 'danger')
+                return render_template('auth/register_student.html')
             
             if password != confirm_password:
                 flash('Passwords do not match', 'danger')
-                return redirect(url_for('register_student'))
+                return render_template('auth/register_student.html')
             
-            # Check if email exists
-            cur = mysql.connection.cursor()
-            cur.execute("SELECT id FROM users WHERE email = %s", (email,))
-            if cur.fetchone():
-                flash('Email already registered', 'danger')
+            if len(password) < 6:
+                flash('Password must be at least 6 characters', 'danger')
+                return render_template('auth/register_student.html')
+            
+            # Check if email already exists
+            try:
+                cur = mysql.connection.cursor()
+                cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+                if cur.fetchone():
+                    flash('Email already registered', 'danger')
+                    cur.close()
+                    return render_template('auth/register_student.html')
                 cur.close()
-                return redirect(url_for('register_student'))
-            
-            # Create user account
-            password_hash = generate_password_hash(password)
-            cur.execute("INSERT INTO users (email, password_hash, user_type) VALUES (%s, %s, 'student')",
-                       (email, password_hash))
-            user_id = cur.lastrowid
+            except Exception as e:
+                logger.error(f"Database error checking email: {str(e)}")
+                flash('An error occurred during registration', 'danger')
+                return render_template('auth/register_student.html')
+            finally:
+                if cur:
+                    cur.close()
             
             # Student details
-            first_name = request.form.get('first_name')
-            middle_name = request.form.get('middle_name')
-            last_name = request.form.get('last_name')
-            date_of_birth = request.form.get('date_of_birth')
-            phone = request.form.get('phone')
-            address = request.form.get('address')
-            gender = request.form.get('gender')
-            class_level = request.form.get('class_level')
-            roll_number = request.form.get('roll_number')
+            first_name = request.form.get('first_name', '').strip()
+            middle_name = request.form.get('middle_name', '').strip()
+            last_name = request.form.get('last_name', '').strip()
+            date_of_birth = request.form.get('date_of_birth', '')
+            phone = request.form.get('phone', '').strip()
+            address = request.form.get('address', '').strip()
+            gender = request.form.get('gender', '')
+            class_level = request.form.get('class_level', '').strip()
+            roll_number = request.form.get('roll_number', '').strip()
+            
+            # Validate required student fields
+            if not all([first_name, last_name, date_of_birth, class_level, roll_number]):
+                flash('Please fill in all required fields', 'danger')
+                return render_template('auth/register_student.html')
             
             # Parent/Guardian details
-            parent_full_name = request.form.get('parent_full_name')
-            parent_email = request.form.get('parent_email')
-            parent_phone = request.form.get('parent_phone')
-            parent_relationship = request.form.get('parent_relationship')
+            parent_full_name = request.form.get('parent_full_name', '').strip()
+            parent_email = request.form.get('parent_email', '').strip()
+            parent_phone = request.form.get('parent_phone', '').strip()
+            parent_relationship = request.form.get('parent_relationship', '').strip()
+            
+            # Hash password
+            password_hash = generate_password_hash(password)
             
             # Profile photo
             profile_photo = None
@@ -252,69 +338,115 @@ def register_student():
                 if file and file.filename != '':
                     profile_photo = save_file(file, os.path.join(app.config['UPLOAD_FOLDER'], 'profiles'))
             
-            # Insert student details
-            cur.execute("""
-                INSERT INTO students 
-                (user_id, first_name, middle_name, last_name, date_of_birth, phone, address, 
-                 gender, class_level, roll_number, profile_photo, parent_full_name, 
-                 parent_email, parent_phone, parent_relationship)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (user_id, first_name, middle_name, last_name, date_of_birth, phone, address,
-                  gender, class_level, roll_number, profile_photo, parent_full_name,
-                  parent_email, parent_phone, parent_relationship))
-            
-            mysql.connection.commit()
-            cur.close()
-            
-            logger.info(f"Student registered successfully: {email}")
-            flash('Registration successful! Please login.', 'success')
-            return redirect(url_for('login'))
+            # Create transaction
+            try:
+                cur = mysql.connection.cursor()
+                
+                # Insert user account
+                cur.execute("""
+                    INSERT INTO users (email, password_hash, user_type, is_active)
+                    VALUES (%s, %s, 'student', TRUE)
+                """, (email, password_hash))
+                
+                user_id = cur.lastrowid
+                
+                # Insert student details
+                cur.execute("""
+                    INSERT INTO students 
+                    (user_id, first_name, middle_name, last_name, date_of_birth, phone, address, 
+                     gender, class_level, roll_number, profile_photo, parent_full_name, 
+                     parent_email, parent_phone, parent_relationship)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (user_id, first_name, middle_name, last_name, date_of_birth, phone, address,
+                      gender, class_level, roll_number, profile_photo, parent_full_name,
+                      parent_email, parent_phone, parent_relationship))
+                
+                mysql.connection.commit()
+                cur.close()
+                
+                logger.info(f"Student registered successfully: {email}")
+                flash('Registration successful! Please login.', 'success')
+                return redirect(url_for('login'))
+                
+            except Exception as e:
+                mysql.connection.rollback()
+                logger.error(f"Student registration database error: {str(e)}")
+                logger.error(traceback.format_exc())
+                flash(f'Registration failed: {str(e)}', 'danger')
+                return render_template('auth/register_student.html')
+            finally:
+                if cur:
+                    cur.close()
             
         except Exception as e:
             logger.error(f"Student registration error: {str(e)}")
             logger.error(traceback.format_exc())
-            mysql.connection.rollback()
-            flash(f'Registration failed: {str(e)}', 'danger')
-            return redirect(url_for('register_student'))
+            flash('An error occurred during registration', 'danger')
+            return render_template('auth/register_student.html')
+        finally:
+            if cur:
+                cur.close()
     
     return render_template('auth/register_student.html')
 
 @app.route('/register/teacher', methods=['GET', 'POST'])
 def register_teacher():
     if request.method == 'POST':
+        cur = None
         try:
             logger.info("Teacher registration attempt")
+            
             # User account details
-            email = request.form.get('email')
-            password = request.form.get('password')
-            confirm_password = request.form.get('confirm_password')
+            email = request.form.get('email', '').strip()
+            password = request.form.get('password', '')
+            confirm_password = request.form.get('confirm_password', '')
+            
+            # Validate input
+            if not email or not password:
+                flash('Email and password are required', 'danger')
+                return render_template('auth/register_teacher.html')
             
             if password != confirm_password:
                 flash('Passwords do not match', 'danger')
-                return redirect(url_for('register_teacher'))
+                return render_template('auth/register_teacher.html')
             
-            # Check if email exists
-            cur = mysql.connection.cursor()
-            cur.execute("SELECT id FROM users WHERE email = %s", (email,))
-            if cur.fetchone():
-                flash('Email already registered', 'danger')
+            if len(password) < 6:
+                flash('Password must be at least 6 characters', 'danger')
+                return render_template('auth/register_teacher.html')
+            
+            # Check if email already exists
+            try:
+                cur = mysql.connection.cursor()
+                cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+                if cur.fetchone():
+                    flash('Email already registered', 'danger')
+                    cur.close()
+                    return render_template('auth/register_teacher.html')
                 cur.close()
-                return redirect(url_for('register_teacher'))
-            
-            # Create user account
-            password_hash = generate_password_hash(password)
-            cur.execute("INSERT INTO users (email, password_hash, user_type) VALUES (%s, %s, 'teacher')",
-                       (email, password_hash))
-            user_id = cur.lastrowid
+            except Exception as e:
+                logger.error(f"Database error checking email: {str(e)}")
+                flash('An error occurred during registration', 'danger')
+                return render_template('auth/register_teacher.html')
+            finally:
+                if cur:
+                    cur.close()
             
             # Teacher details
-            first_name = request.form.get('first_name')
-            last_name = request.form.get('last_name')
-            phone = request.form.get('phone')
-            date_of_birth = request.form.get('date_of_birth')
-            address = request.form.get('address')
-            gender = request.form.get('gender')
-            registration_number = request.form.get('registration_number')
+            first_name = request.form.get('first_name', '').strip()
+            last_name = request.form.get('last_name', '').strip()
+            phone = request.form.get('phone', '').strip()
+            date_of_birth = request.form.get('date_of_birth', '')
+            address = request.form.get('address', '').strip()
+            gender = request.form.get('gender', '')
+            registration_number = request.form.get('registration_number', '').strip()
+            
+            # Validate required fields
+            if not all([first_name, last_name, date_of_birth, registration_number]):
+                flash('Please fill in all required fields', 'danger')
+                return render_template('auth/register_teacher.html')
+            
+            # Hash password
+            password_hash = generate_password_hash(password)
             
             # Profile photo
             profile_photo = None
@@ -323,28 +455,52 @@ def register_teacher():
                 if file and file.filename != '':
                     profile_photo = save_file(file, os.path.join(app.config['UPLOAD_FOLDER'], 'profiles'))
             
-            # Insert teacher details
-            cur.execute("""
-                INSERT INTO teachers 
-                (user_id, first_name, last_name, email, phone, date_of_birth, address, 
-                 gender, registration_number, profile_photo)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (user_id, first_name, last_name, email, phone, date_of_birth, address,
-                  gender, registration_number, profile_photo))
-            
-            mysql.connection.commit()
-            cur.close()
-            
-            logger.info(f"Teacher registered successfully: {email}")
-            flash('Registration successful! Please login.', 'success')
-            return redirect(url_for('login'))
+            # Create transaction
+            try:
+                cur = mysql.connection.cursor()
+                
+                # Insert user account
+                cur.execute("""
+                    INSERT INTO users (email, password_hash, user_type, is_active)
+                    VALUES (%s, %s, 'teacher', TRUE)
+                """, (email, password_hash))
+                
+                user_id = cur.lastrowid
+                
+                # Insert teacher details
+                cur.execute("""
+                    INSERT INTO teachers 
+                    (user_id, first_name, last_name, email, phone, date_of_birth, address, 
+                     gender, registration_number, profile_photo)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (user_id, first_name, last_name, email, phone, date_of_birth, address,
+                      gender, registration_number, profile_photo))
+                
+                mysql.connection.commit()
+                cur.close()
+                
+                logger.info(f"Teacher registered successfully: {email}")
+                flash('Registration successful! Please login.', 'success')
+                return redirect(url_for('login'))
+                
+            except Exception as e:
+                mysql.connection.rollback()
+                logger.error(f"Teacher registration database error: {str(e)}")
+                logger.error(traceback.format_exc())
+                flash(f'Registration failed: {str(e)}', 'danger')
+                return render_template('auth/register_teacher.html')
+            finally:
+                if cur:
+                    cur.close()
             
         except Exception as e:
             logger.error(f"Teacher registration error: {str(e)}")
             logger.error(traceback.format_exc())
-            mysql.connection.rollback()
-            flash(f'Registration failed: {str(e)}', 'danger')
-            return redirect(url_for('register_teacher'))
+            flash('An error occurred during registration', 'danger')
+            return render_template('auth/register_teacher.html')
+        finally:
+            if cur:
+                cur.close()
     
     return render_template('auth/register_teacher.html')
 
