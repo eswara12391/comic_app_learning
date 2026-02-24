@@ -5,7 +5,7 @@
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/student.css') }}">
 <style>
-    /* Existing Story Viewer Styles */
+    /* Existing Story Viewer Styles (unchanged) */
     .story-viewer-container {
         max-width: 1200px;
         margin: 0 auto;
@@ -124,6 +124,148 @@
         color: var(--border-color);
     }
 
+    /* NEW: Full-screen image button (opens custom overlay) */
+    .fullscreen-image-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(0,0,0,0.6);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 0.2s;
+        z-index: 100;
+        border: 2px solid rgba(255,255,255,0.3);
+        font-size: 18px;
+    }
+
+    .fullscreen-image-btn:hover {
+        background: rgba(0,0,0,0.8);
+        transform: scale(1.1);
+    }
+
+    /* NEW: Custom full-screen overlay for image + text */
+    .fullscreen-story-viewer {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.95);
+        z-index: 10000;
+        display: none;
+        flex-direction: column;
+        color: white;
+    }
+
+    .fullscreen-story-viewer.active {
+        display: flex;
+    }
+
+    .fullscreen-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 20px;
+        background: #1e1e1e;
+        border-bottom: 1px solid #444;
+    }
+
+    .fullscreen-header h3 {
+        margin: 0;
+        color: white;
+        font-size: 1.3rem;
+    }
+
+    .fullscreen-header .close-btn {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 2rem;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0 10px;
+    }
+
+    .fullscreen-header .close-btn:hover {
+        color: #ff5555;
+    }
+
+    .fullscreen-content {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .fullscreen-image-container {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: #111;
+    }
+
+    .fullscreen-image-container img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+
+    .fullscreen-text-container {
+        width: 400px;
+        padding: 20px;
+        overflow-y: auto;
+        background: #1e1e1e;
+        border-left: 1px solid #444;
+    }
+
+    .fullscreen-story-text {
+        font-size: 18px;
+        line-height: 1.8;
+        white-space: pre-wrap;
+        margin-bottom: 20px;
+        color: #eee;
+    }
+
+    .fullscreen-story-notes {
+        background: #2a2a2a;
+        border-left: 5px solid #ffc107;
+        padding: 15px;
+        border-radius: 4px;
+        margin-top: 20px;
+        color: #ddd;
+    }
+
+    .fullscreen-story-notes h4 {
+        color: #ffc107;
+        margin-top: 0;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    @media (max-width: 768px) {
+        .fullscreen-content {
+            flex-direction: column;
+        }
+        .fullscreen-text-container {
+            width: 100%;
+            border-left: none;
+            border-top: 1px solid #444;
+        }
+    }
+
+    /* (All other existing CSS remains unchanged below this line) */
     .story-text-container {
         background: var(--card-bg);
         border-radius: var(--border-radius);
@@ -1150,9 +1292,9 @@
         </div>
         
         <div class="control-group">
-            <button id="auto-play" class="btn btn-outline" title="Auto-play (A)">
+            <!-- <button id="auto-play" class="btn btn-outline" title="Auto-play (A)">
                 <i class="fas fa-play"></i> Auto-play
-            </button>
+            </button> -->
             <button id="play-narration" class="btn btn-outline" title="Read Aloud (R)">
                 <i class="fas fa-volume-up"></i> Read Aloud
             </button>
@@ -1179,6 +1321,11 @@
     
     <div class="story-content">
         <div class="story-image-container">
+            <!-- NEW: Full-screen image button (opens custom overlay) -->
+            <button id="fullscreen-image-btn" class="fullscreen-image-btn" title="View full screen">
+                <i class="fas fa-expand"></i>
+            </button>
+            
             <img id="story-image" 
                  src="" 
                  alt="Story Image" 
@@ -1223,6 +1370,26 @@
                 <a href="{{ url_for('student_dashboard') }}" class="btn btn-outline btn-lg">
                     <i class="fas fa-home"></i> Back to Dashboard
                 </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- NEW: Custom Full-Screen Story Viewer (Image + Text) -->
+<div id="fullscreen-story-viewer" class="fullscreen-story-viewer">
+    <div class="fullscreen-header">
+        <h3><i class="fas fa-book-open"></i> Full Screen Story</h3>
+        <button id="close-fullscreen-viewer" class="close-btn" title="Close (Esc)">&times;</button>
+    </div>
+    <div class="fullscreen-content">
+        <div class="fullscreen-image-container">
+            <img id="fullscreen-story-image" src="" alt="Full Screen Image">
+        </div>
+        <div class="fullscreen-text-container">
+            <div id="fullscreen-story-text" class="fullscreen-story-text"></div>
+            <div id="fullscreen-story-notes" class="fullscreen-story-notes" style="display: none;">
+                <h4><i class="fas fa-lightbulb"></i> Important Notes</h4>
+                <p id="fullscreen-notes-text"></p>
             </div>
         </div>
     </div>
@@ -2229,9 +2396,9 @@ class StoryViewer {
         this.pages = pages;
         this.currentPage = parseInt(currentPage);
         this.totalPages = pages.length;
-        this.isPlaying = false;
+        //this.isPlaying = false;
         this.audio = null;
-        this.autoPlayInterval = null;
+        //this.autoPlayInterval = null;
         this.currentDuration = 5000;
         this.tts = new TextToSpeechManager();
         
@@ -2241,13 +2408,14 @@ class StoryViewer {
     init() {
         this.bindEvents();
         this.setupFullScreenDrawing();
+        this.setupCustomFullScreen(); // NEW: Initialize custom full-screen viewer
         this.updatePage();
     }
     
     bindEvents() {
         document.getElementById('prev-page').addEventListener('click', () => this.prevPage());
         document.getElementById('next-page').addEventListener('click', () => this.nextPage());
-        document.getElementById('auto-play').addEventListener('click', () => this.toggleAutoPlay());
+        //document.getElementById('auto-play').addEventListener('click', () => this.toggleAutoPlay());
         document.getElementById('play-narration').addEventListener('click', () => this.toggleNarration());
         document.getElementById('stop-speech').addEventListener('click', () => this.stopSpeech());
         
@@ -2260,31 +2428,32 @@ class StoryViewer {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             
             const isDrawingOpen = document.getElementById('fullscreen-drawing').classList.contains('active');
+            const isCustomFullScreenOpen = document.getElementById('fullscreen-story-viewer').classList.contains('active');
             
             switch(e.key) {
                 case 'ArrowLeft':
-                    if (!isDrawingOpen) {
+                    if (!isDrawingOpen && !isCustomFullScreenOpen) {
                         e.preventDefault();
                         this.prevPage();
                     }
                     break;
                 case 'ArrowRight':
                 case ' ':
-                    if (!isDrawingOpen) {
+                    if (!isDrawingOpen && !isCustomFullScreenOpen) {
                         e.preventDefault();
                         this.nextPage();
                     }
                     break;
-                case 'a':
-                case 'A':
-                    if ((e.ctrlKey || e.metaKey) && !isDrawingOpen) {
-                        e.preventDefault();
-                        this.toggleAutoPlay();
-                    }
-                    break;
+                // case 'a':
+                // case 'A':
+                //     if ((e.ctrlKey || e.metaKey) && !isDrawingOpen && !isCustomFullScreenOpen) {
+                //         e.preventDefault();
+                //         this.toggleAutoPlay();
+                //     }
+                //     break;
                 case 'r':
                 case 'R':
-                    if ((e.ctrlKey || e.metaKey) && !isDrawingOpen) {
+                    if ((e.ctrlKey || e.metaKey) && !isDrawingOpen && !isCustomFullScreenOpen) {
                         e.preventDefault();
                         this.toggleNarration();
                     }
@@ -2297,7 +2466,9 @@ class StoryViewer {
                     }
                     break;
                 case 'Escape':
-                    if (isDrawingOpen) {
+                    if (isCustomFullScreenOpen) {
+                        this.closeFullScreenViewer();
+                    } else if (isDrawingOpen) {
                         this.toggleFullScreenDrawing();
                     }
                     break;
@@ -2312,6 +2483,62 @@ class StoryViewer {
                 drawingManagerInstance = new FullScreenDrawingManager();
             }
         });
+    }
+    
+    // NEW: Setup custom full-screen viewer
+    setupCustomFullScreen() {
+        const fullscreenBtn = document.getElementById('fullscreen-image-btn');
+        fullscreenBtn.addEventListener('click', () => this.openFullScreenViewer());
+        
+        // Close button inside viewer
+        document.getElementById('close-fullscreen-viewer').addEventListener('click', () => this.closeFullScreenViewer());
+        
+        // Optional: double-click on main image also opens viewer
+        document.getElementById('story-image').addEventListener('dblclick', () => this.openFullScreenViewer());
+    }
+    
+    // NEW: Open custom full-screen viewer
+    openFullScreenViewer() {
+        const pageIndex = this.currentPage - 1;
+        const page = this.pages[pageIndex];
+        
+        if (!page) return;
+        
+        // Set image
+        const fullscreenImg = document.getElementById('fullscreen-story-image');
+        const mainImg = document.getElementById('story-image');
+        if (mainImg.src && mainImg.src !== '') {
+            fullscreenImg.src = mainImg.src;
+        } else {
+            fullscreenImg.alt = 'No image available';
+            fullscreenImg.style.display = 'none';
+        }
+        
+        // Set text
+        const fullscreenText = document.getElementById('fullscreen-story-text');
+        fullscreenText.textContent = page.text_content || '';
+        
+        // Set notes if available
+        const fullscreenNotes = document.getElementById('fullscreen-story-notes');
+        const notesText = document.getElementById('fullscreen-notes-text');
+        if (page.important_notes && page.important_notes.trim() !== '') {
+            notesText.textContent = page.important_notes;
+            fullscreenNotes.style.display = 'block';
+        } else {
+            fullscreenNotes.style.display = 'none';
+        }
+        
+        // Show the viewer
+        const viewer = document.getElementById('fullscreen-story-viewer');
+        viewer.classList.add('active');
+        document.body.style.overflow = 'hidden'; // prevent background scrolling
+    }
+    
+    // NEW: Close custom full-screen viewer
+    closeFullScreenViewer() {
+        const viewer = document.getElementById('fullscreen-story-viewer');
+        viewer.classList.remove('active');
+        document.body.style.overflow = '';
     }
     
     toggleFullScreenDrawing() {
@@ -2355,6 +2582,7 @@ class StoryViewer {
         /* 1. IMAGE HANDLING */
         const img = document.getElementById('story-image');
         const placeholder = document.getElementById('image-placeholder');
+        const fullscreenBtn = document.getElementById('fullscreen-image-btn');
         
         img.classList.add('loading');
         
@@ -2368,6 +2596,7 @@ class StoryViewer {
                 img.style.display = 'block';
                 img.classList.remove('loading');
                 placeholder.style.display = 'none';
+                fullscreenBtn.style.display = 'flex';
                 
                 img.classList.add('page-transition-next');
                 setTimeout(() => img.classList.remove('page-transition-next'), 500);
@@ -2378,6 +2607,7 @@ class StoryViewer {
                 img.style.display = 'none';
                 img.classList.remove('loading');
                 placeholder.style.display = 'flex';
+                fullscreenBtn.style.display = 'none';
             };
             
             preloadImg.src = imageUrl;
@@ -2385,6 +2615,7 @@ class StoryViewer {
             img.style.display = 'none';
             img.classList.remove('loading');
             placeholder.style.display = 'flex';
+            fullscreenBtn.style.display = 'none';
         }
         
         /* 2. TEXT CONTENT */
@@ -2557,27 +2788,27 @@ class StoryViewer {
         }
     }
     
-    toggleAutoPlay() {
-        const btn = document.getElementById('auto-play');
+    // toggleAutoPlay() {
+    //     const btn = document.getElementById('auto-play');
         
-        if (this.autoPlayInterval) {
-            clearInterval(this.autoPlayInterval);
-            this.autoPlayInterval = null;
-            btn.innerHTML = '<i class="fas fa-play"></i> Auto-play';
-            btn.classList.remove('active');
-        } else {
-            btn.innerHTML = '<i class="fas fa-pause"></i> Stop Auto-play';
-            btn.classList.add('active');
+    //     if (this.autoPlayInterval) {
+    //         clearInterval(this.autoPlayInterval);
+    //         this.autoPlayInterval = null;
+    //         btn.innerHTML = '<i class="fas fa-play"></i> Auto-play';
+    //         btn.classList.remove('active');
+    //     } else {
+    //         btn.innerHTML = '<i class="fas fa-pause"></i> Stop Auto-play';
+    //         btn.classList.add('active');
             
-            this.autoPlayInterval = setInterval(() => {
-                if (this.currentPage < this.totalPages) {
-                    this.nextPage();
-                } else {
-                    this.toggleAutoPlay();
-                }
-            }, this.currentDuration);
-        }
-    }
+    //         this.autoPlayInterval = setInterval(() => {
+    //             if (this.currentPage < this.totalPages) {
+    //                 this.nextPage();
+    //             } else {
+    //                 this.toggleAutoPlay();
+    //             }
+    //         }, this.currentDuration);
+    //     }
+    // }
     
     updateProgress() {
         const isCompleted = this.currentPage === this.totalPages;
@@ -2803,11 +3034,11 @@ class PuzzleManager {
             { dr: 0, dc: 1 },   // horizontal right
             { dr: 0, dc: -1 },  // horizontal left
             { dr: 1, dc: 0 },   // vertical down
-            { dr: -1, dc: 0 },  // vertical up
-            { dr: 1, dc: 1 },   // diagonal down-right
-            { dr: 1, dc: -1 },  // diagonal down-left
-            { dr: -1, dc: 1 },  // diagonal up-right
-            { dr: -1, dc: -1 }  // diagonal up-left
+            { dr: -1, dc: 0 }//,   vertical up
+            // { dr: 1, dc: 1 },   // diagonal down-right
+            // { dr: 1, dc: -1 },  // diagonal down-left
+            // { dr: -1, dc: 1 },  // diagonal up-right
+            // { dr: -1, dc: -1 }  // diagonal up-left
         ];
         
         // Place words in grid
@@ -3133,20 +3364,20 @@ class PuzzleManager {
             return true;
         }
         
-        // Check diagonal
-        const rowDiff = cells[1].row - cells[0].row;
-        const colDiff = cells[1].col - cells[0].col;
+        // // Check diagonal
+        // const rowDiff = cells[1].row - cells[0].row;
+        // const colDiff = cells[1].col - cells[0].col;
         
-        if (Math.abs(rowDiff) === Math.abs(colDiff) && rowDiff !== 0) {
-            // Check if all cells follow the same pattern
-            for (let i = 1; i < cells.length; i++) {
-                if (cells[i].row !== cells[i-1].row + rowDiff || 
-                    cells[i].col !== cells[i-1].col + colDiff) {
-                    return false;
-                }
-            }
-            return true;
-        }
+        // if (Math.abs(rowDiff) === Math.abs(colDiff) && rowDiff !== 0) {
+        //     // Check if all cells follow the same pattern
+        //     for (let i = 1; i < cells.length; i++) {
+        //         if (cells[i].row !== cells[i-1].row + rowDiff || 
+        //             cells[i].col !== cells[i-1].col + colDiff) {
+        //             return false;
+        //         }
+        //     }
+        //     return true;
+        // }
         
         return false;
     }
@@ -3739,6 +3970,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add global keyboard shortcuts for drawing panel
     document.addEventListener('keydown', (e) => {
         const isDrawingOpen = document.getElementById('fullscreen-drawing').classList.contains('active');
+        const isCustomFullScreenOpen = document.getElementById('fullscreen-story-viewer').classList.contains('active');
         
         if (isDrawingOpen && (e.ctrlKey || e.metaKey)) {
             switch(e.key) {
@@ -3767,7 +3999,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         if (e.key === 'Escape') {
-            if (isDrawingOpen) {
+            if (isCustomFullScreenOpen) {
+                if (window.storyViewer) window.storyViewer.closeFullScreenViewer();
+            } else if (isDrawingOpen) {
                 document.getElementById('fullscreen-drawing').classList.remove('active');
                 document.body.style.overflow = '';
             }
