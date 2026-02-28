@@ -2780,6 +2780,21 @@ class StoryViewer {
     }
     
     nextPage() {
+        // Check if there's a puzzle for the current page that is not completed
+        const puzzleData = JSON.parse(document.getElementById('puzzle-data').textContent);
+        if (puzzleData.puzzle && (!puzzleData.student_puzzle_progress || !puzzleData.student_puzzle_progress.completed)) {
+            // Show puzzle modal
+            if (!puzzleManager) {
+                puzzleManager = new PuzzleManager();
+            }
+            puzzleManager.initPuzzle(puzzleData.puzzle);
+            const modal = document.getElementById('puzzleModal');
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            return; // Don't proceed to next page yet
+        }
+        
+        // No puzzle or already completed, proceed normally
         if (this.currentPage < this.totalPages) {
             this.currentPage++;
             this.updatePage();
@@ -3873,11 +3888,8 @@ function skipPuzzle() {
                 puzzleManager.showNotification('Challenge skipped. Moving to next page...', 'info');
             }
             setTimeout(() => {
-                if (data.next_page) {
-                    closePuzzleModal();
-                } else {
-                    window.location.reload();
-                }
+                // Reload to go to next page
+                window.location.reload();
             }, 1500);
         } else {
             if (puzzleManager) {
@@ -3903,6 +3915,7 @@ function submitPuzzle() {
 // Function to go to next page
 function goToNextPage() {
     closePuzzleModal();
+    // The reload in closePuzzleModal will take care of moving to next page
 }
 
 // Function to retry puzzle
@@ -3961,10 +3974,10 @@ document.addEventListener('DOMContentLoaded', function() {
             puzzleStatus.style.display = 'block';
         }
         
-        // Show puzzle modal after a short delay
-        setTimeout(() => {
-            showPuzzleModal(puzzleData.puzzle);
-        }, 1000);
+        // Do NOT auto-show the puzzle modal - it will appear only when Next is clicked
+        // setTimeout(() => {
+        //     showPuzzleModal(puzzleData.puzzle);
+        // }, 1000);
     }
     
     // Add global keyboard shortcuts for drawing panel
