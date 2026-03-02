@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}{{ student.first_name }} {{ student.last_name }} - Profile{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/teacher.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-user-graduate"></i> Student Profile</h1>
+    <a href="{{ url_for('view_students') }}" class="btn btn-outline">
+        <i class="fas fa-arrow-left"></i> Back to Students
+    </a>
+</div>
+
+<div class="profile-card">
+    <div class="profile-header">
+        <div class="profile-avatar">
+            {% if student.profile_photo %}
+            <img src="{{ url_for('static', filename='uploads/profiles/' + student.profile_photo) }}" alt="Profile">
+            {% else %}
+            <div class="avatar-placeholder">
+                <i class="fas fa-user"></i>
+            </div>
+            {% endif %}
+        </div>
+        <div class="profile-title">
+            <h2>{{ student.first_name }} {{ student.last_name }}</h2>
+            <p>Class {{ student.class_level }} • Roll No: {{ student.roll_number }}</p>
+        </div>
+    </div>
+
+    <div class="profile-details">
+        <div class="detail-item">
+            <span class="detail-label">Email:</span>
+            <span class="detail-value">{{ student.email }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Phone:</span>
+            <span class="detail-value">{{ student.phone or 'Not provided' }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Joined:</span>
+            <span class="detail-value">{{ student.account_created.strftime('%B %d, %Y') }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="stats-cards">
+    <div class="stat-card small">
+        <div class="stat-icon"><i class="fas fa-book-open"></i></div>
+        <div class="stat-content">
+            <h3>{{ progress|length }}</h3>
+            <p>Stories Started</p>
+        </div>
+    </div>
+    <div class="stat-card small">
+        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+        <div class="stat-content">
+            <h3>{{ progress|selectattr('is_completed', 'equalto', 1)|list|length }}</h3>
+            <p>Stories Completed</p>
+        </div>
+    </div>
+    <div class="stat-card small">
+        <div class="stat-icon"><i class="fas fa-pencil-alt"></i></div>
+        <div class="stat-content">
+            <h3>{{ quiz_attempts|length }}</h3>
+            <p>Quizzes Taken</p>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3><i class="fas fa-chart-line"></i> Reading Progress</h3>
+    </div>
+    <div class="card-body">
+        {% if progress %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Story</th>
+                    <th>Progress</th>
+                    <th>Status</th>
+                    <th>Started</th>
+                    <th>Completed</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in progress %}
+                <tr>
+                    <td>{{ p.story_title }}</td>
+                    <td>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{ (p.current_page / p.total_pages * 100) if p.total_pages > 0 else 0 }}%">
+                                {{ p.current_page }}/{{ p.total_pages }}
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        {% if p.is_completed %}
+                        <span class="badge badge-success">Completed</span>
+                        {% else %}
+                        <span class="badge badge-warning">In Progress</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ p.started_at.strftime('%Y-%m-%d') if p.started_at else '—' }}</td>
+                    <td>{{ p.completed_at.strftime('%Y-%m-%d') if p.completed_at else '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted">No reading progress yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3><i class="fas fa-question-circle"></i> Quiz Attempts</h3>
+    </div>
+    <div class="card-body">
+        {% if quiz_attempts %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Story</th>
+                    <th>Quiz</th>
+                    <th>Score</th>
+                    <th>Submitted</th>
+                    <th>Answers</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for qa in quiz_attempts %}
+                <tr>
+                    <td>{{ qa.story_title }}</td>
+                    <td>{{ qa.quiz_title }}</td>
+                    <td>
+                        <span class="score-badge {% if qa.score >= 60 %}score-good{% elif qa.score >= 40 %}score-average{% else %}score-poor{% endif %}">
+                            {{ qa.score|round(1) }}%
+                        </span>
+                    </td>
+                    <td>{{ qa.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>{{ qa.answers_count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted">No quiz attempts yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

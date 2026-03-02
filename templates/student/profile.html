@@ -118,7 +118,52 @@
                 </div>
             </div>
         </div>
-        
+
+        <!-- MESSAGES SECTION (ENHANCED) -->
+        {% if messages %}
+        <div class="profile-section">
+            <h2><i class="fas fa-envelope"></i> Messages from Teachers</h2>
+            <div class="messages-grid">
+                {% for msg in messages %}
+                <div class="message-card {% if not msg.is_read %}unread{% endif %}">
+                    <div class="message-header">
+                        <div class="sender-info">
+                            <div class="sender-avatar">
+                                <i class="fas fa-chalkboard-teacher"></i>
+                            </div>
+                            <div class="sender-details">
+                                <span class="sender-name">{{ msg.teacher_name }}</span>
+                                <span class="sender-email">{{ msg.teacher_email }}</span>
+                            </div>
+                        </div>
+                        <div class="message-date">
+                            <i class="far fa-clock"></i> {{ msg.sent_at.strftime('%Y-%m-%d %H:%M') }}
+                        </div>
+                    </div>
+                    <div class="message-subject">
+                        <strong>{{ msg.subject }}</strong>
+                        {% if not msg.is_read %}
+                        <span class="new-badge">New</span>
+                        {% endif %}
+                    </div>
+                    <div class="message-body">
+                        {{ msg.body }}
+                    </div>
+                    <div class="message-footer">
+                        <span class="read-status">
+                            {% if msg.is_read %}
+                            <i class="fas fa-check-circle" style="color: #28a745;"></i> Read
+                            {% else %}
+                            <i class="fas fa-envelope" style="color: #ffc107;"></i> Unread
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         {% if quiz_results %}
         <div class="profile-section">
             <h2><i class="fas fa-history"></i> Recent Quiz Results</h2>
@@ -143,11 +188,6 @@
                             </td>
                             <td>{{ result.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
                             <td>
-                                <!-- {% if result.score >= 60 %}                              
-                                <span class="badge badge-success">Passed</span>
-                                {% else %}
-                                <span class="badge badge-danger">Failed</span>
-                                {% endif %} -->
                                 {% if result.score >= result.passing_score %}
                                 <span class="badge badge-success" title="Passing Score: {{ result.passing_score }}%">Passed</span>
                                 {% else %}

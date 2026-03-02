@@ -311,3 +311,15 @@ CREATE TABLE IF NOT EXISTS student_messages (
     INDEX idx_created_at (created_at),
     INDEX idx_is_read (is_read)
 );
+
+CREATE TABLE IF NOT EXISTS messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    sender_id INT NOT NULL,
+    recipient_id INT NOT NULL,
+    subject VARCHAR(255) NOT NULL,
+    body TEXT NOT NULL,
+    sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    is_read BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (sender_id) REFERENCES teachers(id) ON DELETE CASCADE,
+    FOREIGN KEY (recipient_id) REFERENCES students(id) ON DELETE CASCADE
+);

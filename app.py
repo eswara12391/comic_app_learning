@@ -3698,32 +3698,80 @@ def take_quiz(story_id):
     except Exception as e:
         flash(f'Error loading quiz: {str(e)}', 'danger')
         return redirect(url_for('student_dashboard'))
-# main code 
+# # main code 
+# @app.route('/student/profile')
+# @student_required
+# def student_profile():
+#     try:
+#         cur = mysql.connection.cursor()
+        
+#         cur.execute("""
+#             SELECT s.* FROM students s
+#             JOIN users u ON s.user_id = u.id
+#             WHERE u.id = %s
+#         """, (session['user_id'],))
+        
+#         student = cur.fetchone()
+        
+#         # Get quiz performance
+#         # cur.execute("""
+#         #     SELECT sqa.score, sqa.submitted_at, s.title as story_title
+#         #     FROM student_quiz_attempts sqa
+#         #     JOIN quizzes q ON sqa.quiz_id = q.id
+#         #     JOIN stories s ON q.story_id = s.id
+#         #     WHERE sqa.student_id = %s
+#         #     ORDER BY sqa.submitted_at DESC
+#         # """, (student['id'],))
+        
+#         # quiz_results = cur.fetchall()
+#         cur.execute("""
+#             SELECT sqa.score, sqa.submitted_at, s.title as story_title, q.passing_score
+#             FROM student_quiz_attempts sqa
+#             JOIN quizzes q ON sqa.quiz_id = q.id
+#             JOIN stories s ON q.story_id = s.id
+#             WHERE sqa.student_id = %s
+#             ORDER BY sqa.submitted_at DESC
+#         """, (student['id'],))
+
+#         quiz_results = cur.fetchall()
+
+#         # Get reading progress
+#         cur.execute("""
+#             SELECT COUNT(*) as total_stories_read,
+#                    SUM(CASE WHEN sp.is_completed THEN 1 ELSE 0 END) as completed_stories
+#             FROM student_progress sp
+#             WHERE sp.student_id = %s
+#         """, (student['id'],))
+        
+#         reading_stats = cur.fetchone()
+        
+#         cur.close()
+        
+#         return render_template('student/profile.html', 
+#                              student=student, 
+#                              quiz_results=quiz_results,
+#                              reading_stats=reading_stats)
+#     except Exception as e:
+#         flash(f'Error loading profile: {str(e)}', 'danger')
+#         return redirect(url_for('student_dashboard'))
 @app.route('/student/profile')
 @student_required
 def student_profile():
     try:
         cur = mysql.connection.cursor()
-        
+
+        # Get student details
         cur.execute("""
             SELECT s.* FROM students s
             JOIN users u ON s.user_id = u.id
             WHERE u.id = %s
         """, (session['user_id'],))
-        
         student = cur.fetchone()
-        
-        # Get quiz performance
-        # cur.execute("""
-        #     SELECT sqa.score, sqa.submitted_at, s.title as story_title
-        #     FROM student_quiz_attempts sqa
-        #     JOIN quizzes q ON sqa.quiz_id = q.id
-        #     JOIN stories s ON q.story_id = s.id
-        #     WHERE sqa.student_id = %s
-        #     ORDER BY sqa.submitted_at DESC
-        # """, (student['id'],))
-        
-        # quiz_results = cur.fetchall()
+        if not student:
+            flash('Student profile not found.', 'danger')
+            return redirect(url_for('student_dashboard'))
+
+        # Get quiz results
         cur.execute("""
             SELECT sqa.score, sqa.submitted_at, s.title as story_title, q.passing_score
             FROM student_quiz_attempts sqa
@@ -3732,7 +3780,6 @@ def student_profile():
             WHERE sqa.student_id = %s
             ORDER BY sqa.submitted_at DESC
         """, (student['id'],))
-
         quiz_results = cur.fetchall()
 
         # Get reading progress
@@ -3742,19 +3789,36 @@ def student_profile():
             FROM student_progress sp
             WHERE sp.student_id = %s
         """, (student['id'],))
-        
         reading_stats = cur.fetchone()
-        
+
+        # Get messages sent to this student (join with teachers for sender info)
+        cur.execute("""
+            SELECT m.*, 
+                   CONCAT(t.first_name, ' ', t.last_name) as teacher_name,
+                   t.email as teacher_email
+            FROM messages m
+            JOIN teachers t ON m.sender_id = t.id
+            WHERE m.recipient_id = %s
+            ORDER BY m.sent_at DESC
+        """, (student['id'],))
+        messages = cur.fetchall()
+
+        # Optional: Mark all unread messages as read when viewed
+        # Uncomment the next two lines if you want to auto-mark messages as read
+        cur.execute("UPDATE messages SET is_read = TRUE WHERE recipient_id = %s AND is_read = FALSE", (student['id'],))
+        mysql.connection.commit()
+
         cur.close()
-        
-        return render_template('student/profile.html', 
-                             student=student, 
-                             quiz_results=quiz_results,
-                             reading_stats=reading_stats)
+
+        return render_template('student/profile.html',
+                               student=student,
+                               quiz_results=quiz_results,
+                               reading_stats=reading_stats,
+                               messages=messages)
     except Exception as e:
         flash(f'Error loading profile: {str(e)}', 'danger')
         return redirect(url_for('student_dashboard'))
-    
+       
 # @app.route('/student/profile')
 # @student_required
 # def student_profile():
@@ -5675,7 +5739,147 @@ def generate_story_pdf(story, pages, quiz, student_questions, answer_key_questio
 
 
 #=========================================================================================
+@app.route('/teacher/student/<int:student_id>')
+@teacher_required
+def view_student_profile(student_id):
+    try:
+        cur = mysql.connection.cursor()
 
+        # Fetch student basic info (with user email)
+        cur.execute("""
+            SELECT s.*, u.email, u.created_at as account_created
+            FROM students s
+            JOIN users u ON s.user_id = u.id
+            WHERE s.id = %s
+        """, (student_id,))
+        student = cur.fetchone()
+        if not student:
+            flash('Student not found.', 'danger')
+            return redirect(url_for('view_students'))
+
+        # Fetch the student's reading progress for all stories
+        cur.execute("""
+            SELECT 
+                st.title AS story_title,
+                sp.current_page,
+                sp.is_completed,
+                sp.started_at,
+                sp.completed_at,
+                (SELECT COUNT(*) FROM story_pages WHERE story_id = st.id) AS total_pages
+            FROM student_progress sp
+            JOIN stories st ON sp.story_id = st.id
+            WHERE sp.student_id = %s
+            ORDER BY sp.started_at DESC
+        """, (student_id,))
+        progress = cur.fetchall()
+
+        # Fetch the student's quiz attempts
+        cur.execute("""
+            SELECT 
+                st.title AS story_title,
+                q.title AS quiz_title,
+                sqa.score,
+                sqa.submitted_at,
+                (SELECT COUNT(*) FROM student_quiz_answers WHERE attempt_id = sqa.id) AS answers_count
+            FROM student_quiz_attempts sqa
+            JOIN quizzes q ON sqa.quiz_id = q.id
+            JOIN stories st ON q.story_id = st.id
+            WHERE sqa.student_id = %s
+            ORDER BY sqa.submitted_at DESC
+        """, (student_id,))
+        quiz_attempts = cur.fetchall()
+
+        cur.close()
+
+        return render_template('teacher/student_profile.html',
+                               student=student,
+                               progress=progress,
+                               quiz_attempts=quiz_attempts)
+
+    except Exception as e:
+        flash(f'Error loading student profile: {str(e)}', 'danger')
+        return redirect(url_for('view_students'))
+
+
+@app.route('/teacher/send_message/<int:student_id>', methods=['GET', 'POST'])
+@teacher_required
+def send_message(student_id):
+    try:
+        cur = mysql.connection.cursor()
+        
+        # Get teacher ID
+        cur.execute("SELECT id FROM teachers WHERE user_id = %s", (session['user_id'],))
+        teacher = cur.fetchone()
+        if not teacher:
+            flash('Teacher record not found.', 'danger')
+            return redirect(url_for('view_students'))
+        
+        # Get student info for display
+        cur.execute("""
+            SELECT s.*, u.email 
+            FROM students s
+            JOIN users u ON s.user_id = u.id
+            WHERE s.id = %s
+        """, (student_id,))
+        student = cur.fetchone()
+        if not student:
+            flash('Student not found.', 'danger')
+            return redirect(url_for('view_students'))
+        
+        if request.method == 'POST':
+            subject = request.form.get('subject')
+            body = request.form.get('body')
+            
+            if not subject or not body:
+                flash('Subject and body are required.', 'danger')
+                return render_template('teacher/send_message.html', student=student)
+            
+            # Insert message
+            cur.execute("""
+                INSERT INTO messages (sender_id, recipient_id, subject, body, sent_at)
+                VALUES (%s, %s, %s, %s, NOW())
+            """, (teacher['id'], student_id, subject, body))
+            mysql.connection.commit()
+            
+            flash('Message sent successfully!', 'success')
+            return redirect(url_for('view_students'))
+        
+        cur.close()
+        return render_template('teacher/send_message.html', student=student)
+        
+    except Exception as e:
+        flash(f'Error: {str(e)}', 'danger')
+        return redirect(url_for('view_students'))
+
+@app.route('/teacher/messages')
+@teacher_required
+def teacher_messages():
+    try:
+        cur = mysql.connection.cursor()
+        
+        # Get teacher ID
+        cur.execute("SELECT id FROM teachers WHERE user_id = %s", (session['user_id'],))
+        teacher = cur.fetchone()
+        
+        # Get all messages sent by this teacher
+        cur.execute("""
+            SELECT m.*, 
+                   CONCAT(s.first_name, ' ', s.last_name) as student_name,
+                   s.class_level,
+                   s.roll_number
+            FROM messages m
+            JOIN students s ON m.recipient_id = s.id
+            WHERE m.sender_id = %s
+            ORDER BY m.sent_at DESC
+        """, (teacher['id'],))
+        messages = cur.fetchall()
+        
+        cur.close()
+        return render_template('teacher/messages.html', messages=messages)
+    except Exception as e:
+        flash(f'Error loading messages: {str(e)}', 'danger')
+        return redirect(url_for('teacher_dashboard'))
+       
 @app.route('/teacher/students')
 @teacher_required
 def view_students():
@@ -5799,6 +6003,28 @@ def analytics():
         """, (teacher['id'],))
         
         recent_quiz_results = cur.fetchall()
+
+          # --- NEW: Top Performers ---
+        # Get students with highest average quiz scores (minimum 2 attempts)
+        cur.execute("""
+            SELECT 
+                st.id,
+                st.first_name,
+                st.last_name,
+                st.class_level,
+                COUNT(sqa.id) as quiz_count,
+                AVG(sqa.score) as avg_score
+            FROM students st
+            JOIN student_quiz_attempts sqa ON st.id = sqa.student_id
+            JOIN quizzes q ON sqa.quiz_id = q.id
+            JOIN stories s ON q.story_id = s.id
+            WHERE s.teacher_id = %s
+            GROUP BY st.id, st.first_name, st.last_name, st.class_level
+            HAVING quiz_count >= 2
+            ORDER BY avg_score DESC
+            LIMIT 5
+        """, (teacher['id'],))
+        top_performers = cur.fetchall()
         
         cur.close()
         
@@ -5806,7 +6032,8 @@ def analytics():
                              overall_stats=overall_stats,
                              story_analytics=story_analytics,
                              class_analytics=class_analytics,
-                             recent_quiz_results=recent_quiz_results)
+                             recent_quiz_results=recent_quiz_results,
+                             top_performers=top_performers)
     except Exception as e:
         flash(f'Error loading analytics: {str(e)}', 'danger')
         return redirect(url_for('teacher_dashboard'))
