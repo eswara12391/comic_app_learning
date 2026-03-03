@@ -1343,9 +1343,12 @@
                             </div>
                             
                             <div class="puzzle-actions">
-                                <button type="button" class="btn btn-sm btn-primary" onclick="editPuzzle({{ puzzle.id }})">
+                                <!-- <button type="button" class="btn btn-sm btn-primary" onclick="editPuzzle({{ puzzle.id }})">
                                     <i class="fas fa-edit"></i> Edit
-                                </button>
+                                </button> -->
+                                <a href="{{ url_for('edit_puzzle', puzzle_id=puzzle.id) }}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-edit"></i> Edit
+                                </a>
                                 <button type="button" class="btn btn-sm btn-danger" onclick="deletePuzzle({{ puzzle.id }})">
                                     <i class="fas fa-trash"></i> Delete
                                 </button>

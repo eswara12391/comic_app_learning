@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Puzzle - Comic Learning App{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/teacher.css') }}">
+<style>
+    .edit-puzzle-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    .puzzle-preview-mini {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 20px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .puzzle-preview-mini pre {
+        background: white;
+        padding: 10px;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    .form-group {
+        margin-bottom: 20px;
+    }
+    .form-group label {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 8px;
+        display: block;
+    }
+    .form-control {
+        width: 100%;
+        padding: 10px 15px;
+        border: 2px solid #e9ecef;
+        border-radius: 6px;
+        font-size: 16px;
+    }
+    .form-control:focus {
+        border-color: #007bff;
+        outline: none;
+    }
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 20px 0;
+    }
+    .checkbox-group input {
+        width: 20px;
+        height: 20px;
+    }
+    .btn-group {
+        display: flex;
+        gap: 15px;
+        margin-top: 30px;
+    }
+    .btn {
+        padding: 12px 25px;
+        border-radius: 6px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    .btn-primary {
+        background: linear-gradient(135deg, #007bff, #0056b3);
+        color: white;
+    }
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,123,255,0.3);
+    }
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+    .btn-secondary:hover {
+        background: #5a6268;
+    }
+    .btn-warning {
+        background: #ffc107;
+        color: #212529;
+    }
+    .btn-warning:hover {
+        background: #e0a800;
+    }
+    .alert-info {
+        background: #d1ecf1;
+        border: 1px solid #bee5eb;
+        color: #0c5460;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="edit-puzzle-container">
+    <div class="page-header">
+        <h1><i class="fas fa-edit"></i> Edit Puzzle</h1>
+        <p>Page {{ puzzle.page_number }} • {{ puzzle.puzzle_type_name|replace('_', ' ')|title }}</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('update_puzzle', puzzle_id=puzzle.id) }}">
+        <div class="card">
+            <div class="card-body">
+                <div class="form-group">
+                    <label for="difficulty">Difficulty Level</label>
+                    <select class="form-control" id="difficulty" name="difficulty">
+                        <option value="easy" {% if puzzle.difficulty == 'easy' %}selected{% endif %}>Easy</option>
+                        <option value="medium" {% if puzzle.difficulty == 'medium' %}selected{% endif %}>Medium</option>
+                        <option value="hard" {% if puzzle.difficulty == 'hard' %}selected{% endif %}>Hard</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="time_limit">Time Limit (seconds)</label>
+                    <input type="number" class="form-control" id="time_limit" name="time_limit" 
+                           value="{{ puzzle.time_limit }}" min="30" max="600" step="10" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="required_score">Required Score (%)</label>
+                    <input type="number" class="form-control" id="required_score" name="required_score" 
+                           value="{{ puzzle.required_score }}" min="0" max="100" step="5" required>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="regenerate" name="regenerate">
+                    <label for="regenerate">Regenerate puzzle content based on page text (current content will be replaced)</label>
+                </div>
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Puzzle Type:</strong> {{ puzzle.puzzle_type_name|replace('_', ' ')|title }} (cannot be changed here). To use a different type, delete this puzzle and create a new one.
+                </div>
+
+                <div class="puzzle-preview-mini">
+                    <h5><i class="fas fa-eye"></i> Current Puzzle Preview</h5>
+                    <pre>{{ puzzle.puzzle_data|tojson(indent=2) }}</pre>
+                </div>
+
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                    <a href="{{ url_for('preview_puzzle', puzzle_id=puzzle.id) }}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                    <a href="{{ url_for('view_story_details', story_id=puzzle.story_id) }}" class="btn btn-warning">
+                        <i class="fas fa-arrow-left"></i> Back to Story
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

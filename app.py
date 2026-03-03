@@ -2797,7 +2797,102 @@ def preview_puzzle(puzzle_id):
     except Exception as e:
         flash(f'Error loading puzzle: {str(e)}', 'danger')
         return redirect(url_for('teacher_stories'))
+    
+@app.route('/teacher/edit_puzzle/<int:puzzle_id>', methods=['GET'])
+@teacher_required
+def edit_puzzle(puzzle_id):
+    """Display form to edit puzzle settings"""
+    try:
+        cur = mysql.connection.cursor()
+        
+        # Get puzzle details with page content
+        cur.execute("""
+            SELECT spp.*, pt.name as puzzle_type_name, sp.page_number, sp.story_id, sp.text_content
+            FROM story_page_puzzles spp
+            JOIN puzzle_types pt ON spp.puzzle_type_id = pt.id
+            JOIN story_pages sp ON spp.story_page_id = sp.id
+            WHERE spp.id = %s
+        """, (puzzle_id,))
+        
+        puzzle = cur.fetchone()
+        if not puzzle:
+            flash('Puzzle not found.', 'danger')
+            return redirect(url_for('teacher_stories'))
+        
+        # Parse puzzle data
+        if isinstance(puzzle['puzzle_data'], str):
+            try:
+                puzzle['puzzle_data'] = json.loads(puzzle['puzzle_data'])
+            except json.JSONDecodeError:
+                puzzle['puzzle_data'] = {}
+        elif puzzle['puzzle_data'] is None:
+            puzzle['puzzle_data'] = {}
+        
+        cur.close()
+        
+        return render_template('teacher/edit_puzzle.html', puzzle=puzzle)
+        
+    except Exception as e:
+        flash(f'Error loading puzzle: {str(e)}', 'danger')
+        return redirect(url_for('teacher_stories'))
 
+@app.route('/teacher/update_puzzle/<int:puzzle_id>', methods=['POST'])
+@teacher_required
+def update_puzzle(puzzle_id):
+    """Update puzzle settings and optionally regenerate content"""
+    try:
+        difficulty = request.form.get('difficulty', 'medium')
+        time_limit = int(request.form.get('time_limit', 180))
+        required_score = int(request.form.get('required_score', 70))
+        regenerate = request.form.get('regenerate') == 'on'
+        
+        cur = mysql.connection.cursor()
+        
+        # Get current puzzle to know its type and page content
+        cur.execute("""
+            SELECT spp.*, sp.text_content, pt.name as puzzle_type_name
+            FROM story_page_puzzles spp
+            JOIN story_pages sp ON spp.story_page_id = sp.id
+            JOIN puzzle_types pt ON spp.puzzle_type_id = pt.id
+            WHERE spp.id = %s
+        """, (puzzle_id,))
+        
+        puzzle = cur.fetchone()
+        if not puzzle:
+            flash('Puzzle not found.', 'danger')
+            return redirect(url_for('teacher_stories'))
+        
+        if regenerate:
+            # Regenerate puzzle data using the same type
+            puzzle_data = generate_puzzle_from_text(puzzle['text_content'], puzzle['puzzle_type_name'])
+            puzzle_data_json = json.dumps(puzzle_data)
+        else:
+            # Keep existing puzzle data
+            if isinstance(puzzle['puzzle_data'], dict):
+                puzzle_data_json = json.dumps(puzzle['puzzle_data'])
+            else:
+                puzzle_data_json = puzzle['puzzle_data']  # assume already JSON string
+        
+        # Update puzzle
+        cur.execute("""
+            UPDATE story_page_puzzles
+            SET difficulty = %s,
+                time_limit = %s,
+                required_score = %s,
+                puzzle_data = %s
+            WHERE id = %s
+        """, (difficulty, time_limit, required_score, puzzle_data_json, puzzle_id))
+        
+        mysql.connection.commit()
+        cur.close()
+        
+        flash('Puzzle updated successfully.', 'success')
+        return redirect(url_for('preview_puzzle', puzzle_id=puzzle_id))
+        
+    except Exception as e:
+        flash(f'Error updating puzzle: {str(e)}', 'danger')
+        return redirect(url_for('edit_puzzle', puzzle_id=puzzle_id))
+    
 # Custom Jinja2 filter to convert numbers to letters
 @app.template_filter('to_letters')
 def to_letters_filter(num):
