@@ -45,6 +45,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+app.config['MYSQL_CHARSET'] = 'utf8mb4'
+app.config['MYSQL_COLLATION'] = 'utf8mb4_unicode_ci'
+
 # Initialize MySQL
 mysql = MySQL(app)
 
@@ -1567,8 +1570,10 @@ def generate_puzzle_from_text(text_content, puzzle_type='word_search'):
             words_in_sentence = sentence.split()
             if len(words_in_sentence) > 5:
                 # Choose 1-2 words to blank out
-                num_blanks = min(2, len(words_in_sentence) - 4)
-                blank_indices = random.sample(range(4, len(words_in_sentence) - 1), num_blanks)
+                available_positions = len(words_in_sentence) - 5
+                num_blanks = min(2, available_positions)
+                if num_blanks > 0:
+                    blank_indices = random.sample(range(4, len(words_in_sentence) - 1), num_blanks)
                 
                 blank_sentence = words_in_sentence.copy()
                 answers = []

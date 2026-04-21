@@ -323,3 +323,13 @@ CREATE TABLE IF NOT EXISTS messages (
     FOREIGN KEY (sender_id) REFERENCES teachers(id) ON DELETE CASCADE,
     FOREIGN KEY (recipient_id) REFERENCES students(id) ON DELETE CASCADE
 );
+
+ALTER DATABASE comic_learning_db 
+CHARACTER SET = utf8mb4 
+COLLATE = utf8mb4_unicode_ci;
+ALTER TABLE stories CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE story_pages CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE quiz_questions CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE stories 
+CONVERT TO CHARACTER SET utf8mb4 
+COLLATE utf8mb4_unicode_ci;
