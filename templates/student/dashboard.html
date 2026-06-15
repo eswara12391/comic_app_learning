@@ -59,6 +59,25 @@
     </div>
 </div>
 
+<!-- ================= LEARNING CALENDAR (NEW) ================= -->
+<div class="learning-calendar-section">
+    <h2 class="section-title">📅 Learning Calendar</h2>
+    <div class="calendar-container">
+        <div class="calendar-header">
+            <button id="prevMonthBtn" class="calendar-nav-btn">&lt;</button>
+            <h3 id="calendarMonthYear"></h3>
+            <button id="nextMonthBtn" class="calendar-nav-btn">&gt;</button>
+        </div>
+        <div class="calendar-weekdays">
+            <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+        </div>
+        <div id="calendarDays" class="calendar-days"></div>
+    </div>
+    <div class="calendar-legend">
+        <span><i class="fas fa-calendar-check" style="color: #667eea;"></i> Story Created / Assigned</span>
+    </div>
+</div>
+
 <!-- ================= LOCATION SEARCH FEATURE ================= -->
 <div class="location-search-section">
     <h2 class="section-title">🌍 Explore Famous Places</h2>
@@ -198,6 +217,11 @@
     <i class="fas fa-moon"></i>
 </button>
 
+<!-- ================= SUPPORT CHAT BUTTON (LEFT SIDE LOWER CORNER) ================= -->
+<button class="chat-float-btn support-chat-btn" onclick="openSupportChatModal()" title="Need Help? Contact Support">
+    <i class="fas fa-headset"></i>
+</button>
+
 <!-- Teacher Chat Modal -->
 {% if conversation_id %}
 <div class="chat-overlay" id="teacherChatOverlay" onclick="closeTeacherChatModal()"></div>
@@ -275,6 +299,48 @@
     </div>
 </div>
 
+<!-- ================= SUPPORT CHAT MODAL (Left Side) ================= -->
+<div class="chat-overlay" id="supportChatOverlay" onclick="closeSupportChatModal()"></div>
+<div class="chat-modal support-chat-modal" id="supportChatModal">
+    <div class="chat-header support-header">
+        <h3><i class="fas fa-headset"></i> Help & Support</h3>
+        <button class="close-chat" onclick="closeSupportChatModal()">×</button>
+    </div>
+    
+    <div class="student-info-container" style="padding: 20px; background: #f8f9fa; border-bottom: 1px solid #eee;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="width: 40px; height: 40px; background: #4CAF50; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white;">
+                <i class="fas fa-life-ring"></i>
+            </div>
+            <div>
+                <h4 style="margin: 0; font-size: 16px;">Support Assistant</h4>
+                <p style="margin: 0; font-size: 14px; color: #666;">We're here to help you 24/7</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="chat-messages-container" id="supportChatMessages">
+        <div class="chat-message">
+            <div class="message-content support-bot">
+                Hello! 👋 How can I assist you today? Feel free to ask any question about the app or your studies.
+                <span class="message-time">Just now</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="typing-indicator" id="supportTypingIndicator">
+        Support is typing...
+    </div>
+    
+    <div class="chat-input-container">
+        <input type="text" id="supportChatInput" placeholder="Type your question here..." 
+               onkeypress="handleSupportKeyPress(event)">
+        <button onclick="sendSupportMessage()">
+            <i class="fas fa-paper-plane"></i> Send
+        </button>
+    </div>
+</div>
+
 <style>
 /* Floating Chat Buttons */
 .chat-float-btn {
@@ -313,6 +379,13 @@
     right: 30px;
     bottom: 105px;
     background: linear-gradient(135deg, #4CAF50 0%, #8BC34A 100%);
+}
+
+/* Support Chat Button - Bottom Left Corner */
+.support-chat-btn {
+    left: 30px;
+    bottom: 30px;
+    background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);
 }
 
 /* ===== DARK MODE BUTTON STYLES ===== */
@@ -404,6 +477,10 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+}
+
+.support-header {
+    background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);
 }
 
 .chat-header h3 {
@@ -506,6 +583,22 @@
 }
 
 .message-content.classmate {
+    background: white;
+    color: #333;
+    border: 1px solid #e0e0e0;
+    border-bottom-left-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+/* Support chat message styles */
+.message-content.support-user {
+    background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);
+    color: white;
+    margin-left: auto;
+    border-bottom-right-radius: 5px;
+}
+
+.message-content.support-bot {
     background: white;
     color: #333;
     border: 1px solid #e0e0e0;
@@ -732,13 +825,150 @@
     font-size: 18px;
 }
 
-/* ===== DARK MODE STYLES (covers all sections) ===== */
+/* ===== LEARNING CALENDAR STYLES (NEW) ===== */
+.learning-calendar-section {
+    margin: 40px 0;
+    padding: 20px;
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+}
+
+body.dark-mode .learning-calendar-section {
+    background-color: #16213e;
+}
+
+.calendar-container {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+body.dark-mode .calendar-container {
+    background-color: #0f3460;
+    color: #e0e0e0;
+}
+
+.calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.calendar-header h3 {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 600;
+}
+
+.calendar-nav-btn {
+    background: #667eea;
+    border: none;
+    color: white;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: all 0.2s;
+}
+
+.calendar-nav-btn:hover {
+    background: #5a67d8;
+    transform: scale(1.05);
+}
+
+.calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-weight: 600;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+body.dark-mode .calendar-weekdays {
+    border-bottom-color: #2d3748;
+}
+
+.calendar-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+}
+
+.calendar-day {
+    aspect-ratio: 1 / 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #f7fafc;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    position: relative;
+}
+
+body.dark-mode .calendar-day {
+    background: #1a2a4a;
+    color: #e0e0e0;
+}
+
+.calendar-day.other-month {
+    opacity: 0.4;
+}
+
+.calendar-day.today {
+    background: #e2e8f0;
+    font-weight: bold;
+    box-shadow: inset 0 0 0 2px #667eea;
+}
+
+body.dark-mode .calendar-day.today {
+    background: #2d3748;
+    box-shadow: inset 0 0 0 2px #e94560;
+}
+
+.event-marker {
+    margin-top: 4px;
+    width: 6px;
+    height: 6px;
+    background: #667eea;
+    border-radius: 50%;
+}
+
+body.dark-mode .event-marker {
+    background: #e94560;
+}
+
+.calendar-legend {
+    margin-top: 15px;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    font-size: 0.85rem;
+    color: #4a5568;
+}
+
+body.dark-mode .calendar-legend {
+    color: #cbd5e0;
+}
+
+.calendar-legend i {
+    margin-right: 6px;
+}
+
+/* ===== DARK MODE STYLES (existing + calendar) ===== */
 body.dark-mode {
     background-color: #1a1a2e;
     color: #e0e0e0;
 }
 
-/* Dashboard header & profile */
 body.dark-mode .dashboard-header {
     background-color: #16213e;
     color: #e0e0e0;
@@ -757,7 +987,6 @@ body.dark-mode .profile-photo img {
     border-color: #e94560;
 }
 
-/* Stats cards */
 body.dark-mode .stat-card {
     background-color: #16213e;
     color: #e0e0e0;
@@ -768,7 +997,6 @@ body.dark-mode .stat-icon {
     color: #e94560;
 }
 
-/* Location search */
 body.dark-mode .location-search-section {
     background-color: #16213e;
 }
@@ -787,7 +1015,6 @@ body.dark-mode .search-container button {
     background: linear-gradient(135deg, #e94560 0%, #0f3460 100%);
 }
 
-/* Stories grid */
 body.dark-mode .story-card {
     background-color: #16213e;
     color: #e0e0e0;
@@ -839,13 +1066,11 @@ body.dark-mode .btn-outline-info:hover {
     color: white;
 }
 
-/* Empty state */
 body.dark-mode .empty-state {
     background-color: #16213e;
     color: #b0b0b0;
 }
 
-/* Chat modals */
 body.dark-mode .chat-modal {
     background-color: #16213e;
     color: #e0e0e0;
@@ -853,6 +1078,10 @@ body.dark-mode .chat-modal {
 
 body.dark-mode .chat-header {
     background: linear-gradient(135deg, #e94560 0%, #0f3460 100%);
+}
+
+body.dark-mode .support-header {
+    background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);
 }
 
 body.dark-mode .student-info-container {
@@ -900,6 +1129,16 @@ body.dark-mode .message-content.me {
     background: linear-gradient(135deg, #e94560 0%, #0f3460 100%);
 }
 
+body.dark-mode .message-content.support-user {
+    background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);
+}
+
+body.dark-mode .message-content.support-bot {
+    background-color: #0f3460;
+    color: #e0e0e0;
+    border-color: #e94560;
+}
+
 body.dark-mode .chat-input-container {
     background-color: #16213e;
     border-top-color: #e94560;
@@ -927,7 +1166,6 @@ body.dark-mode .typing-indicator {
     color: #b0b0b0;
 }
 
-/* Scrollbar */
 body.dark-mode .chat-messages-container::-webkit-scrollbar-track {
     background: #0f3460;
 }
@@ -940,7 +1178,6 @@ body.dark-mode .chat-messages-container::-webkit-scrollbar-thumb:hover {
     background: #ff6b6b;
 }
 
-/* Floating buttons */
 body.dark-mode .teacher-chat-btn {
     background: linear-gradient(135deg, #e94560 0%, #0f3460 100%);
 }
@@ -953,7 +1190,10 @@ body.dark-mode .dark-mode-btn {
     background: #e94560;
 }
 
-/* Image cards */
+body.dark-mode .support-chat-btn {
+    background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);
+}
+
 body.dark-mode .image-card {
     background-color: #16213e;
     border-color: #e94560;
@@ -994,6 +1234,11 @@ body.dark-mode .image-card .image-info a {
         right: 20px;
         bottom: 170px;
     }
+    
+    .support-chat-btn {
+        left: 20px;
+        bottom: 20px;
+    }
 
     .search-container {
         flex-direction: column;
@@ -1001,6 +1246,10 @@ body.dark-mode .image-card .image-info a {
     
     .search-container button {
         padding: 12px;
+    }
+
+    .calendar-day {
+        font-size: 0.75rem;
     }
 }
 </style>
@@ -1015,8 +1264,99 @@ let currentStudentConversation = null;
 let currentClassmateId = null;
 let isTeacherModalOpen = false;
 let isStudentModalOpen = false;
+let isSupportModalOpen = false;
 let teacherRefreshInterval;
 let studentRefreshInterval;
+
+// ================= CALENDAR DATA (NEW) =================
+// Extract story creation dates from the stories list (sent from backend)
+const storyDatesList = [
+    {% for story in stories %}
+        {% if story.created_at %}
+            "{{ story.created_at.strftime('%Y-%m-%d') }}",
+        {% endif %}
+    {% endfor %}
+];
+// Remove empty values and keep unique dates
+const storyDateSet = new Set(storyDatesList.filter(d => d));
+const storyCreationDates = Array.from(storyDateSet);
+
+// Calendar state
+let currentYear = new Date().getFullYear();
+let currentMonth = new Date().getMonth(); // 0-11
+
+// Helper: render calendar
+function renderCalendar() {
+    const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+    const startDayOfWeek = firstDayOfMonth.getDay(); // 0 = Sunday
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    
+    // Get previous month days to fill empty cells
+    const prevMonthDays = new Date(currentYear, currentMonth, 0).getDate();
+    
+    const calendarDaysContainer = document.getElementById('calendarDays');
+    const monthYearElem = document.getElementById('calendarMonthYear');
+    
+    // Update month/year header
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    monthYearElem.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+    
+    let daysHTML = '';
+    
+    // Previous month's trailing days
+    for (let i = startDayOfWeek - 1; i >= 0; i--) {
+        const day = prevMonthDays - i;
+        daysHTML += `<div class="calendar-day other-month">${day}</div>`;
+    }
+    
+    // Current month days
+    const today = new Date();
+    const isCurrentMonthYear = (today.getFullYear() === currentYear && today.getMonth() === currentMonth);
+    const todayDate = today.getDate();
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const hasEvent = storyCreationDates.includes(dateStr);
+        const isToday = (isCurrentMonthYear && day === todayDate);
+        const todayClass = isToday ? 'today' : '';
+        
+        daysHTML += `
+            <div class="calendar-day ${todayClass}">
+                ${day}
+                ${hasEvent ? '<div class="event-marker"></div>' : ''}
+            </div>
+        `;
+    }
+    
+    // Next month's starting days to fill remaining cells (to make 6 rows)
+    const totalCells = Math.ceil((startDayOfWeek + daysInMonth) / 7) * 7;
+    const remainingCells = totalCells - (startDayOfWeek + daysInMonth);
+    for (let i = 1; i <= remainingCells; i++) {
+        daysHTML += `<div class="calendar-day other-month">${i}</div>`;
+    }
+    
+    calendarDaysContainer.innerHTML = daysHTML;
+}
+
+function prevMonth() {
+    if (currentMonth === 0) {
+        currentMonth = 11;
+        currentYear--;
+    } else {
+        currentMonth--;
+    }
+    renderCalendar();
+}
+
+function nextMonth() {
+    if (currentMonth === 11) {
+        currentMonth = 0;
+        currentYear++;
+    } else {
+        currentMonth++;
+    }
+    renderCalendar();
+}
 
 // ================= TEACHER CHAT FUNCTIONS =================
 {% if conversation_id %}
@@ -1371,6 +1711,78 @@ function updateStudentNotificationBadge() {
         });
 }
 
+// ================= SUPPORT CHAT FUNCTIONS =================
+function openSupportChatModal() {
+    document.getElementById('supportChatModal').classList.add('active');
+    document.getElementById('supportChatOverlay').classList.add('active');
+    isSupportModalOpen = true;
+    const container = document.getElementById('supportChatMessages');
+    container.scrollTop = container.scrollHeight;
+}
+
+function closeSupportChatModal() {
+    document.getElementById('supportChatModal').classList.remove('active');
+    document.getElementById('supportChatOverlay').classList.remove('active');
+    isSupportModalOpen = false;
+}
+
+function sendSupportMessage() {
+    const input = document.getElementById('supportChatInput');
+    const userMessage = input.value.trim();
+    if (!userMessage) return;
+    
+    input.value = '';
+    
+    const now = new Date();
+    const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    const messagesContainer = document.getElementById('supportChatMessages');
+    const userMessageDiv = document.createElement('div');
+    userMessageDiv.className = 'chat-message';
+    userMessageDiv.innerHTML = `
+        <div class="message-content support-user">
+            ${escapeHtml(userMessage)}
+            <span class="message-time">${timeString}</span>
+        </div>
+    `;
+    messagesContainer.appendChild(userMessageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    const typingIndicator = document.getElementById('supportTypingIndicator');
+    typingIndicator.classList.add('active');
+    
+    setTimeout(() => {
+        typingIndicator.classList.remove('active');
+        
+        const botResponse = "Please contact 8260990408 for any query or help. Our support team is available 24/7 to assist you.";
+        const botTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        const botMessageDiv = document.createElement('div');
+        botMessageDiv.className = 'chat-message';
+        botMessageDiv.innerHTML = `
+            <div class="message-content support-bot">
+                ${escapeHtml(botResponse)}
+                <span class="message-time">${botTime}</span>
+            </div>
+        `;
+        messagesContainer.appendChild(botMessageDiv);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }, 800);
+}
+
+function handleSupportKeyPress(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        sendSupportMessage();
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // ================= LOCATION SEARCH FUNCTION =================
 const UNSPLASH_ACCESS_KEY = 'Od-tRjeK2sMTrAAZZFSwsm8OTGRWHYM1jodLl8PEsSQ'; 
 
@@ -1442,11 +1854,9 @@ function toggleDarkMode() {
     const body = document.body;
     body.classList.toggle('dark-mode');
     
-    // Save preference
     const isDark = body.classList.contains('dark-mode');
     localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
     
-    // Toggle button icon
     const darkBtn = document.querySelector('.dark-mode-btn i');
     if (isDark) {
         darkBtn.classList.remove('fa-moon');
@@ -1476,6 +1886,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Apply dark mode preference
     setDarkModePreference();
 
+    // Initialize calendar
+    renderCalendar();
+    document.getElementById('prevMonthBtn').addEventListener('click', prevMonth);
+    document.getElementById('nextMonthBtn').addEventListener('click', nextMonth);
+
     // Update notification badges
     {% if conversation_id %}
     updateTeacherNotificationBadge();
@@ -1496,18 +1911,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 10000);
 
     // Allow "Enter" key in location search
-    document.getElementById('locationInput').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            searchLocation();
-        }
-    });
-
-    // Clear images when input is emptied
-    document.getElementById('locationInput').addEventListener('input', function() {
-        if (this.value.trim() === '') {
-            document.getElementById('imageResults').innerHTML = '';
-        }
-    });
+    const locationInput = document.getElementById('locationInput');
+    if (locationInput) {
+        locationInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchLocation();
+            }
+        });
+        locationInput.addEventListener('input', function() {
+            if (this.value.trim() === '') {
+                document.getElementById('imageResults').innerHTML = '';
+            }
+        });
+    }
 });
 </script>
 {% endblock %}
